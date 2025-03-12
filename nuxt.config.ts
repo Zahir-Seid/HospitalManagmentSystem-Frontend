@@ -6,5 +6,5 @@ export default defineNuxtConfig({
     public: {
       API_BASE: process.env.NUXT_PUBLIC_API_BASE
     }
-  }
+  },
 })

@@ -1,3 +1,91 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+interface Notification {
+  id: number;
+  message: string;
+  created_at: string;
+  read: boolean;
+}
+
+const notifications = ref<Notification[]>([]);
+const selectedNotifications = ref<number[]>([]);
+
+// Fetch notifications
+const fetchNotifications = async () => {
+  try {
+    const response = await fetch(`${apiBase}/notifications/list`);
+    const data = await response.json();
+    notifications.value = data;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+  }
+};
+
+// Mark all notifications as read
+const markAllRead = async () => {
+  try {
+    await Promise.all(notifications.value.map((notification) => markAsRead(notification.id)));
+  } catch (error) {
+    console.error('Error marking all as read:', error);
+  }
+};
+
+// Mark selected notifications as read
+const markSelectedRead = async () => {
+  try {
+    await Promise.all(selectedNotifications.value.map((id) => markAsRead(id)));
+  } catch (error) {
+    console.error('Error marking selected as read:', error);
+  }
+};
+
+// Helper method to mark a single notification as read
+const markAsRead = async (notificationId: number) => {
+  try {
+    await fetch(`${apiBase}/notifications/mark-read/${notificationId}`, {
+      method: 'PUT',
+    });
+    notifications.value = notifications.value.map((notification) =>
+      notification.id === notificationId ? { ...notification, read: true } : notification
+    );
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+  }
+};
+
+// Delete selected notifications
+const deleteSelected = async () => {
+  try {
+    await Promise.all(selectedNotifications.value.map((id) => deleteNotification(id)));
+    notifications.value = notifications.value.filter(
+      (notification) => !selectedNotifications.value.includes(notification.id)
+    );
+    selectedNotifications.value = [];
+  } catch (error) {
+    console.error('Error deleting selected notifications:', error);
+  }
+};
+
+// Helper method to delete a notification
+const deleteNotification = async (notificationId: number) => {
+  try {
+    await fetch(`${apiBase}/notifications/delete/${notificationId}`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+  }
+};
+
+onMounted(() => {
+  fetchNotifications();
+});
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -55,80 +143,34 @@
           </div>
         </aside>
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
-          <div class="space-y-6">
-            <div class="flex justify-between items-center mb-6">
-              <h2 class="text-2xl font-semibold">Patient Records</h2>
-              <div class="relative">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                <input type="text" placeholder="Search patients..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-80 transition-all duration-200"/>
-              </div>
+          <div class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-xl mb-8 flex flex-col md:flex-row justify-between items-center">
+            <h2 class="text-2xl font-bold text-emerald-900 mb-4 md:mb-0">Notifications</h2>
+            <div class="flex space-x-4">
+              <button @click="markAllRead" class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-all duration-300 hover:scale-105 flex items-center">
+                <span class="material-symbols-outlined mr-2">done_all</span> Mark All as Read
+              </button>
+              <button @click="markSelectedRead" class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-all duration-300 hover:scale-105 flex items-center">
+                <span class="material-symbols-outlined mr-2">mark_email_read</span> Mark Selected as Read
+              </button>
+              <button @click="deleteSelected" class="bg-red-600 text-white px-6 py-2 rounded-full hover:bg-red-700 transition-all duration-300 hover:scale-105 flex items-center">
+                <span class="material-symbols-outlined mr-2">delete</span> Delete Selected
+              </button>
             </div>
-            <div class="grid gap-4">
-              <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <span class="material-symbols-outlined text-3xl text-emerald-600">person</span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">David Smith</h3>
-                      <p class="text-sm text-gray-500">Patient ID: PT-2024-156</p>
-                    </div>
+          </div>
+          <div class="space-y-4">
+            <div v-for="notification in notifications" :key="notification.id" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+              <div class="flex items-start space-x-4">
+                <input type="checkbox" v-model="selectedNotifications" :value="notification.id" class="mt-1.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"/>
+                <div class="flex items-start space-x-4 flex-1">
+                  <div class="bg-emerald-100 p-3 rounded-full">
+                    <span class="material-symbols-outlined text-emerald-600">calendar_today</span>
                   </div>
-                  <button class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2">
-                    <span class="material-symbols-outlined">visibility</span> View Details
-                  </button>
-                </div>
-                <div class="mt-4 grid grid-cols-4 gap-4">
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Age</p>
-                    <p class="font-medium">28 years</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Blood Type</p>
-                    <p class="font-medium">O+</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Last Visit</p>
-                    <p class="font-medium">2024-01-15</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Status</p>
-                    <p class="font-medium text-emerald-600">Active</p>
-                  </div>
-                </div>
-              </div>
-              <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <span class="material-symbols-outlined text-3xl text-emerald-600">person</span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">Emily Brown</h3>
-                      <p class="text-sm text-gray-500">Patient ID: PT-2024-157</p>
-                    </div>
-                  </div>
-                  <button class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2">
-                    <span class="material-symbols-outlined">visibility</span> View Details
-                  </button>
-                </div>
-                <div class="mt-4 grid grid-cols-4 gap-4">
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Age</p>
-                    <p class="font-medium">35 years</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Blood Type</p>
-                    <p class="font-medium">A-</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Last Visit</p>
-                    <p class="font-medium">2024-01-20</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Status</p>
-                    <p class="font-medium text-emerald-600">Active</p>
+                  <div>
+                    <h3 class="text-lg font-semibold text-emerald-900">
+                      {{ notification.message.slice(0, 50) }}{{ notification.message.length > 50 ? '...' : '' }}
+                    </h3>
+                    <p class="text-gray-600 mt-1">{{ notification.message }}</p>
+                    <p class="text-sm text-gray-500 mt-2">{{ notification.created_at }}</p>
                   </div>
                 </div>
               </div>

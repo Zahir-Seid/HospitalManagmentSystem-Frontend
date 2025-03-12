@@ -1,7 +1,35 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+const patients = ref<any[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+
+const fetchPatients = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    const response = await fetch(`${useRuntimeConfig().public.API_BASE}/patients`)
+    if (!response.ok) throw new Error('Failed to fetch patients')
+    const data = await response.json()
+    patients.value = data
+  } catch (err: any) {
+    error.value = err.message || 'Something went wrong'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchPatients()
+})
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
       <div class="flex h-full">
+        <!-- Sidebar -->
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
             <div class="text-white text-xl font-bold mb-8">Record Officer Dashboard</div>
@@ -55,79 +83,67 @@
           </div>
         </aside>
 
+        <!-- Main Content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
           <div class="space-y-6">
+            <!-- Header -->
             <div class="flex justify-between items-center mb-6">
               <h2 class="text-2xl font-semibold">Patient Records</h2>
               <div class="relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                <input type="text" placeholder="Search patients..." class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-80 transition-all duration-200"/>
+                <input
+                  type="text"
+                  placeholder="Search patients..."
+                  class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-80 transition-all duration-200"
+                />
               </div>
             </div>
-            
-            <div class="grid gap-4">
-              <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <span class="material-symbols-outlined text-3xl text-emerald-600">person</span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">David Smith</h3>
-                      <p class="text-sm text-gray-500">Patient ID: PT-2024-156</p>
-                    </div>
-                  </div>
-                  <button class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2">
-                    <span class="material-symbols-outlined">visibility</span> View Details
-                  </button>
-                </div>
-                <div class="mt-4 grid grid-cols-4 gap-4">
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Age</p>
-                    <p class="font-medium">28 years</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Blood Type</p>
-                    <p class="font-medium">O+</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Last Visit</p>
-                    <p class="font-medium">2024-01-15</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Status</p>
-                    <p class="font-medium text-emerald-600">Active</p>
-                  </div>
-                </div>
-              </div>
 
-              <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+            <!-- Loading and Error States -->
+            <div v-if="loading" class="text-center">Loading patients...</div>
+            <div v-if="error" class="text-red-500">{{ error }}</div>
+
+            <!-- Patient Cards -->
+            <div v-else class="grid gap-4">
+              <div
+                v-for="patient in patients"
+                :key="patient.id"
+                class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300"
+              >
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <span class="material-symbols-outlined text-3xl text-emerald-600">person</span>
+                    <div class="w-16 h-16 bg-emerald-100 rounded-full overflow-hidden flex items-center justify-center">
+                      <img
+                        v-if="patient.profile_picture"
+                        :src="patient.profile_picture"
+                        alt="Profile picture"
+                        class="object-cover w-full h-full"
+                      />
+                      <span v-else class="material-symbols-outlined text-3xl text-emerald-600">person</span>
                     </div>
                     <div>
-                      <h3 class="text-lg font-semibold">Emily Brown</h3>
-                      <p class="text-sm text-gray-500">Patient ID: PT-2024-157</p>
+                      <h3 class="text-lg font-semibold">{{ patient.username }}</h3>
+                      <p class="text-sm text-gray-500">Patient ID: PT-{{ patient.id }}</p>
                     </div>
                   </div>
-                  <button class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2">
+                  <button
+                    class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
+                  >
                     <span class="material-symbols-outlined">visibility</span> View Details
                   </button>
                 </div>
                 <div class="mt-4 grid grid-cols-4 gap-4">
                   <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Age</p>
-                    <p class="font-medium">35 years</p>
+                    <p class="text-sm text-gray-500">Phone Number</p>
+                    <p class="font-medium">{{ patient.phone_number }}</p>
                   </div>
                   <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Blood Type</p>
-                    <p class="font-medium">A-</p>
+                    <p class="text-sm text-gray-500">Region</p>
+                    <p class="font-medium">{{ patient.region }}</p>
                   </div>
                   <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Last Visit</p>
-                    <p class="font-medium">2024-01-20</p>
+                    <p class="text-sm text-gray-500">Town</p>
+                    <p class="font-medium">{{ patient.town }}</p>
                   </div>
                   <div class="p-3 bg-emerald-50 rounded-lg">
                     <p class="text-sm text-gray-500">Status</p>
@@ -142,6 +158,7 @@
     </div>
   </div>
 </template>
+
   
   <style scoped>
     @import url(https://fonts.googleapis.com/css2?family=Inter&display=swap);

@@ -1,81 +1,89 @@
-<script>
-export default {
-  data() {
-    return {
-      notifications: [],
-      selectedNotifications: [],
-    };
-  },
-  mounted() {
-    this.fetchNotifications();
-  },
-  methods: {
-    // Fetch notifications
-    async fetchNotifications() {
-      try {
-        const response = await fetch('/api/notifications/list');
-        const data = await response.json();
-        this.notifications = data;
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      }
-    },
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
 
-    // Mark all notifications as read
-    async markAllRead() {
-      try {
-        await Promise.all(this.notifications.map(notification => this.markAsRead(notification.id)));
-      } catch (error) {
-        console.error('Error marking all as read:', error);
-      }
-    },
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
 
-    // Mark selected notifications as read
-    async markSelectedRead() {
-      try {
-        await Promise.all(this.selectedNotifications.map(id => this.markAsRead(id)));
-      } catch (error) {
-        console.error('Error marking selected as read:', error);
-      }
-    },
+interface Notification {
+  id: number;
+  message: string;
+  created_at : string;
+  read: boolean;
+}
 
-    // Helper method to mark a single notification as read
-    async markAsRead(notificationId) {
-      try {
-        await fetch(`/api/notifications/mark-read/${notificationId}`, {
-          method: 'PUT',
-        });
-        this.notifications = this.notifications.map(notification => 
-          notification.id === notificationId ? { ...notification, read: true } : notification
-        );
-      } catch (error) {
-        console.error('Error marking notification as read:', error);
-      }
-    },
+const notifications = ref<Notification[]>([]);
+const selectedNotifications = ref<number[]>([]);
 
-    // Delete selected notifications
-    async deleteSelected() {
-      try {
-        await Promise.all(this.selectedNotifications.map(id => this.deleteNotification(id)));
-        this.notifications = this.notifications.filter(notification => !this.selectedNotifications.includes(notification.id));
-        this.selectedNotifications = [];
-      } catch (error) {
-        console.error('Error deleting selected notifications:', error);
-      }
-    },
-
-    // Helper method to delete a notification
-    async deleteNotification(notificationId) {
-      try {
-        await fetch(`/api/notifications/delete/${notificationId}`, {
-          method: 'DELETE',
-        });
-      } catch (error) {
-        console.error('Error deleting notification:', error);
-      }
-    },
-  },
+// Fetch notifications
+const fetchNotifications = async () => {
+  try {
+    const response = await fetch(`${apiBase}/notifications/list`);
+    const data = await response.json();
+    notifications.value = data;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+  }
 };
+
+// Mark all notifications as read
+const markAllRead = async () => {
+  try {
+    await Promise.all(notifications.value.map((notification) => markAsRead(notification.id)));
+  } catch (error) {
+    console.error('Error marking all as read:', error);
+  }
+};
+
+// Mark selected notifications as read
+const markSelectedRead = async () => {
+  try {
+    await Promise.all(selectedNotifications.value.map((id) => markAsRead(id)));
+  } catch (error) {
+    console.error('Error marking selected as read:', error);
+  }
+};
+
+// Helper method to mark a single notification as read
+const markAsRead = async (notificationId: number) => {
+  try {
+    await fetch(`${apiBase}/notifications/mark-read/${notificationId}`, {
+      method: 'PUT',
+    });
+    notifications.value = notifications.value.map((notification) =>
+      notification.id === notificationId ? { ...notification, read: true } : notification
+    );
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+  }
+};
+
+// Delete selected notifications
+const deleteSelected = async () => {
+  try {
+    await Promise.all(selectedNotifications.value.map((id) => deleteNotification(id)));
+    notifications.value = notifications.value.filter(
+      (notification) => !selectedNotifications.value.includes(notification.id)
+    );
+    selectedNotifications.value = [];
+  } catch (error) {
+    console.error('Error deleting selected notifications:', error);
+  }
+};
+
+// Helper method to delete a notification
+const deleteNotification = async (notificationId: number) => {
+  try {
+    await fetch(`${apiBase}/notifications/delete/${notificationId}`, {
+      method: 'DELETE',
+    });
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+  }
+};
+
+onMounted(() => {
+  fetchNotifications();
+});
 </script>
 
 <template>
@@ -136,9 +144,11 @@ export default {
                     <span class="material-symbols-outlined text-emerald-600">calendar_today</span>
                   </div>
                   <div>
-                    <h3 class="text-lg font-semibold text-emerald-900">{{ notification.title }}</h3>
+                    <h3 class="text-lg font-semibold text-emerald-900">
+                      {{ notification.message.slice(0, 50) }}{{ notification.message.length > 50 ? '...' : '' }}
+                    </h3>
                     <p class="text-gray-600 mt-1">{{ notification.message }}</p>
-                    <p class="text-sm text-gray-500 mt-2">{{ notification.timestamp }}</p>
+                    <p class="text-sm text-gray-500 mt-2">{{ notification.created_at }}</p>
                   </div>
                 </div>
               </div>

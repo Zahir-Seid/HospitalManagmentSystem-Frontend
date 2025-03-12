@@ -1,3 +1,43 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRouter, useRuntimeConfig } from '#imports';
+
+const router = useRouter();
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE; // API base URL
+
+const patients = ref([]); // To hold the inactive patients
+const errorMessage = ref('');
+
+const fetchPatients = async () => {
+  try {
+    const response = await $fetch(`${apiBase}/user/approve-patient`, {
+      method: 'GET',
+    });
+    patients.value = response; // Assuming the response contains a list of inactive patients
+  } catch (error) {
+    errorMessage.value = error.data?.error || 'Failed to load patients.';
+  }
+};
+
+const approvePatient = async (patientId) => {
+  try {
+    await $fetch(`${apiBase}/user/approve-patient/`, {
+      method: 'PUT',
+      body: { user_id: patientId },
+    });
+
+    // Refresh the patient list after approval
+    await fetchPatients();
+    alert('Patient approved successfully!');
+  } catch (error) {
+    errorMessage.value = error.data?.error || 'Failed to approve patient.';
+  }
+};
+
+// Fetch patients when the component is mounted
+onMounted(fetchPatients);
+</script>
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -54,67 +94,47 @@
             © 2025 Assosa General Hospital. All rights reserved.
           </div>
         </aside>
+        <!-- Main content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
           <div class="space-y-6">
             <h2 class="text-2xl font-semibold mb-6">Pending Patient Registrations</h2>
+
+            <!-- Inactive patients list -->
             <div class="grid gap-4">
-              <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+              <div v-for="patient in patients" :key="patient.id" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <!-- Patient Profile Picture -->
+                    <div v-if="patient.profile_picture" class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                      <img :src="patient.profile_picture" alt="Patient Picture" class="w-full h-full object-cover rounded-full" />
+                    </div>
+                    <div v-else class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
                       <span class="material-symbols-outlined text-3xl text-emerald-600">person</span>
                     </div>
+
                     <div>
-                      <h3 class="text-lg font-semibold">Sarah Johnson</h3>
-                      <p class="text-sm text-gray-500">Registration ID: PT-2025-001</p>
+                      <h3 class="text-lg font-semibold">{{ patient.first_name }} {{ patient.last_name }}</h3>
+                      <p class="text-sm text-gray-500">Registration ID: {{ patient.registration_id }}</p>
                     </div>
                   </div>
-                  <button class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2">
+
+                  <button @click="approvePatient(patient.id)" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2">
                     <span class="material-symbols-outlined">check</span> Approve
                   </button>
                 </div>
+
                 <div class="mt-4 grid grid-cols-3 gap-4">
                   <div class="p-3 bg-emerald-50 rounded-lg">
                     <p class="text-sm text-gray-500">Age</p>
-                    <p class="font-medium">32 years</p>
+                    <p class="font-medium">{{ patient.age }} years</p>
                   </div>
                   <div class="p-3 bg-emerald-50 rounded-lg">
                     <p class="text-sm text-gray-500">Gender</p>
-                    <p class="font-medium">Female</p>
+                    <p class="font-medium">{{ patient.gender }}</p>
                   </div>
                   <div class="p-3 bg-emerald-50 rounded-lg">
                     <p class="text-sm text-gray-500">Contact</p>
-                    <p class="font-medium">+251 912 345 678</p>
-                  </div>
-                </div>
-              </div>
-              <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <span class="material-symbols-outlined text-3xl text-emerald-600">person</span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">Michael Chen</h3>
-                      <p class="text-sm text-gray-500">Registration ID: PT-2025-002</p>
-                    </div>
-                  </div>
-                  <button class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2">
-                    <span class="material-symbols-outlined">check</span> Approve
-                  </button>
-                </div>
-                <div class="mt-4 grid grid-cols-3 gap-4">
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Age</p>
-                    <p class="font-medium">45 years</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Gender</p>
-                    <p class="font-medium">Male</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Contact</p>
-                    <p class="font-medium">+251 987 654 321</p>
+                    <p class="font-medium">{{ patient.contact }}</p>
                   </div>
                 </div>
               </div>
