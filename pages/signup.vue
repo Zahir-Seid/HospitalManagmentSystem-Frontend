@@ -1,3 +1,134 @@
+<script setup>
+import { ref } from 'vue';
+import { useRuntimeConfig } from '#imports';
+
+// Form fields
+const username = ref('');
+const email = ref('');
+const password = ref('');
+const confirmPassword = ref('');
+const firstName = ref('');
+const middleName = ref('');
+const lastName = ref('');
+const phoneNumber = ref('');
+const gender = ref('');
+const dateOfBirth = ref('');
+const address = ref('');
+const region = ref('');
+const town = ref('');
+const kebele = ref('');
+const houseNumber = ref('');
+const profilePicture = ref(null); // For profile picture upload
+
+// Form state
+const agreeToTerms = ref(false);
+const errorMessage = ref('');
+const successMessage = ref('');
+const activeTab = ref('personal'); // Track which tab is active
+const personalInfoValid = ref(false);
+const accountInfoValid = ref(false);
+
+// Validation helpers
+const isValidPhoneNumber = (phone) => /^\d{10}$/.test(phone);
+const isValidDate = (date) => !isNaN(Date.parse(date));
+const isValidPassword = (password) => password.length >= 8;
+const isNotEmpty = (value) => value.trim() !== '';
+
+// Validate personal info
+const validatePersonalInfo = () => {
+  personalInfoValid.value =
+    isNotEmpty(firstName.value) &&
+    isNotEmpty(lastName.value) &&
+    isNotEmpty(region.value) &&
+    isNotEmpty(town.value) &&
+    isNotEmpty(kebele.value) &&
+    isNotEmpty(houseNumber.value) &&
+    isValidPhoneNumber(phoneNumber.value) &&
+    isNotEmpty(gender.value) &&
+    isValidDate(dateOfBirth.value) &&
+    isNotEmpty(address.value);
+};
+
+// Validate account info
+const validateAccountInfo = () => {
+  accountInfoValid.value =
+    isNotEmpty(username.value) &&
+    isValidPassword(password.value) &&
+    password.value === confirmPassword.value;
+};
+
+// Handle profile picture selection
+const handleFileChange = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    profilePicture.value = file;
+  }
+};
+
+// Handle signup
+const handleSignup = async () => {
+  validatePersonalInfo();
+  validateAccountInfo();
+
+  if (!personalInfoValid.value) {
+    errorMessage.value = "Please fill out all required personal information correctly.";
+    successMessage.value = '';
+    return;
+  }
+
+  if (!accountInfoValid.value) {
+    errorMessage.value = "Please fill out all required account details correctly.";
+    successMessage.value = '';
+    return;
+  }
+
+  if (!agreeToTerms.value) {
+    errorMessage.value = "You must agree to the terms and conditions.";
+    successMessage.value = '';
+    return;
+  }
+
+  try {
+    const apiBase = useRuntimeConfig().public.API_BASE;
+
+    // Prepare the payload as a JSON object
+    const payload = {
+      username: username.value,
+      email: email.value,
+      password: password.value,
+      first_name: firstName.value,
+      middle_name: middleName.value,
+      last_name: lastName.value,
+      phone_number: phoneNumber.value,
+      gender: gender.value,
+      date_of_birth: dateOfBirth.value,
+      address: address.value,
+      region: region.value,
+      town: town.value,
+      kebele: kebele.value,
+      house_number: houseNumber.value,
+      profile_picture: profilePicture.value ? profilePicture.value.name : null, // Only send the filename or path for the picture
+    };
+
+    // Send JSON instead of FormData
+    const response = await $fetch(`${apiBase}/user/signup/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', // Specify JSON content type
+      },
+      body: JSON.stringify(payload),
+    });
+
+    successMessage.value = response.message;
+    errorMessage.value = '';
+  } catch (error) {
+    console.error("Signup Error:", error);
+    errorMessage.value = error.data?.error || "Signup failed. Please try again.";
+    successMessage.value = '';
+  }
+};
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="w-full min-h-screen bg-gradient-to-br from-emerald-50 to-white">
@@ -16,46 +147,209 @@
 
           <div class="flex gap-4 justify-center mb-8">
             <button class="px-6 py-2 rounded-full border-2 border-emerald-600 hover:bg-emerald-50 transition-all hover:scale-105">
-              <a href="/signin">Sign In </a>
+              <a href="/signin">Sign In</a>
             </button>
             <button class="px-6 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-all hover:scale-105">
               Sign Up
             </button>
           </div>
 
-          <!-- Form -->
+          <!-- Signup Form -->
           <form @submit.prevent="handleSignup" class="space-y-4">
-            <div>
-              <label class="block mb-2 text-sm font-medium">Username</label>
-              <input v-model="username" type="text" class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" placeholder="Enter your username" required />
+            <!-- Progress Indicator -->
+            <div class="flex items-center justify-center space-x-4 mb-6">
+              <div class="flex items-center space-x-2">
+                <span :class="activeTab === 'personal' 
+                  ? 'bg-emerald-600 text-white' 
+                  : 'bg-emerald-100 text-emerald-600'"
+                  class="w-8 h-8 rounded-full flex items-center justify-center font-medium">
+                  1
+                </span>
+                <span class="text-sm font-medium">Personal Information</span>
+              </div>
+              
+              <div class="w-16 h-0.5 bg-emerald-200"></div>
+              
+              <div class="flex items-center space-x-2">
+                <span :class="activeTab === 'account' 
+                  ? 'bg-emerald-600 text-white' 
+                  : 'bg-emerald-100 text-emerald-600'"
+                  class="w-8 h-8 rounded-full flex items-center justify-center font-medium">
+                  2
+                </span>
+                <span class="text-sm font-medium">Account Details</span>
+              </div>
             </div>
 
-            <div>
-              <label class="block mb-2 text-sm font-medium">Email</label>
-              <input v-model="email" type="email" class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" placeholder="Enter your email" required />
+            <!-- Personal Info Tab -->
+            <div v-show="activeTab === 'personal'" class="space-y-4">
+              <!-- Profile Picture Upload -->
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Profile Picture</label>
+                <input type="file" @change="handleFileChange" accept="image/*" 
+                  class="w-full p-2 rounded-lg bg-emerald-50 border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+
+              <!-- Name Fields -->
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block mb-2 text-sm font-medium text-emerald-700">First Name</label>
+                  <input v-model="firstName" @input="validatePersonalInfo" type="text" required
+                    class="w-full p-3 rounded-lg border"
+                    :class="{'border-red-500': !isNotEmpty(firstName) && showErrors, 'border-emerald-200': isNotEmpty(firstName) || !showErrors}"
+                    placeholder="Enter first name"
+                  />
+                  <p v-if="!isNotEmpty(firstName) && showErrors" class="text-red-500 text-sm mt-1">First name is required.</p>
+                </div>
+                <div>
+                  <label class="block mb-2 text-sm font-medium text-emerald-700">Middle Name</label>
+                  <input v-model="middleName" type="text"
+                    class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400"
+                    placeholder="Enter middle name"
+                  />
+                </div>
+                <div class="col-span-2">
+                  <label class="block mb-2 text-sm font-medium text-emerald-700">Last Name</label>
+                  <input v-model="lastName" @input="validatePersonalInfo" type="text" required
+                    class="w-full p-3 rounded-lg border"
+                    :class="{'border-red-500': !isNotEmpty(lastName) && showErrors, 'border-emerald-200': isNotEmpty(lastName) || !showErrors}"
+                    placeholder="Enter last name"
+                  />
+                  <p v-if="!isNotEmpty(lastName) && showErrors" class="text-red-500 text-sm mt-1">Last name is required.</p>
+                </div>
+              </div>
+
+              <!-- Contact Info -->
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Phone Number</label>
+                <input v-model="phoneNumber" @input="validatePersonalInfo" type="text"
+                  class="w-full p-3 rounded-lg border"
+                  :class="{'border-red-500': !isValidPhoneNumber(phoneNumber) && showErrors, 'border-emerald-200': isValidPhoneNumber(phoneNumber) || !showErrors}"
+                  placeholder="Enter phone number"
+                />
+                <p v-if="!isValidPhoneNumber(phoneNumber) && showErrors" class="text-red-500 text-sm mt-1">Invalid phone number.</p>
+              </div>
+
+              <!-- Personal Details -->
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Gender</label>
+                <select v-model="gender" @change="validatePersonalInfo"
+                  class="w-full p-3 rounded-lg border"
+                  :class="{'border-red-500': !isNotEmpty(gender) && showErrors, 'border-emerald-200': isNotEmpty(gender) || !showErrors}">
+                  <option value="" disabled>Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+                <p v-if="!isNotEmpty(gender) && showErrors" class="text-red-500 text-sm mt-1">Gender is required.</p>
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Date of Birth</label>
+                <input v-model="dateOfBirth" @input="validatePersonalInfo" type="date"
+                  class="w-full p-3 rounded-lg border"
+                  :class="{'border-red-500': !isValidDate(dateOfBirth) && showErrors, 'border-emerald-200': isValidDate(dateOfBirth) || !showErrors}"
+                />
+                <p v-if="!isValidDate(dateOfBirth) && showErrors" class="text-red-500 text-sm mt-1">Invalid date of birth.</p>
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Address</label>
+                <textarea v-model="address" @input="validatePersonalInfo" rows="3"
+                  class="w-full p-3 rounded-lg border"
+                  :class="{'border-red-500': !isNotEmpty(address) && showErrors, 'border-emerald-200': isNotEmpty(address) || !showErrors}"
+                  placeholder="Enter address"
+                ></textarea>
+                <p v-if="!isNotEmpty(address) && showErrors" class="text-red-500 text-sm mt-1">Address is required.</p>
+              </div>
+
+              <!-- Address Fields (Patient Profile) -->
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Region</label>
+                <input  v-model="region" type="text"
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Town</label>
+                <input v-model="town" type="text"
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Kebele</label>
+                <input v-model="kebele" type="text"
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">House Number</label>
+                <input v-model="houseNumber" type="text"
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+
+              <button
+              type="button"
+              @click="activeTab = 'account'"
+              :disabled="!personalInfoValid"
+              :class="[
+                'w-full px-6 py-3 rounded-full text-white transition-all hover:scale-105 disabled:bg-emerald-300 disabled:text-white',
+                personalInfoValid 
+                  ? 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer' 
+                  : 'bg-emerald-300 cursor-not-allowed'
+              ]"
+            >
+              Next: Account Details
+            </button>
+            </div>  
+
+            <!-- Account Info Tab -->
+            <div v-show="activeTab === 'account'" class="space-y-4">
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Username</label>
+                <input v-model="username" type="text" placeholder="Enter your username" required 
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Email</label>
+                <input v-model="email" type="email" placeholder="Enter your email" required 
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Password</label>
+                <input v-model="password" type="password" placeholder="••••••••" required 
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Confirm Password</label>
+                <input v-model="confirmPassword" type="password" placeholder="••••••••" required 
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+
+              <!-- Back and Submit Buttons -->
+              <div class="flex gap-4">
+                <button type="submit" class="w-full bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition-all hover:scale-105">
+                  Create Account
+                </button>
+              </div>
+              <button
+                  type="button"
+                  @click="activeTab = 'personal'"
+                  class="w-1/2 bg-emerald-100 text-emerald-600 py-3 rounded-lg hover:bg-emerald-200 transition-all"
+                >
+                  Back
+                </button>
             </div>
 
-            <div>
-              <label class="block mb-2 text-sm font-medium">Password</label>
-              <input v-model="password" type="password" class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" placeholder="••••••••" required />
-            </div>
-
-            <div>
-              <label class="block mb-2 text-sm font-medium">Confirm Password</label>
-              <input v-model="confirmPassword" type="password" class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" placeholder="••••••••" required />
-            </div>
-
-            <div class="flex items-center space-x-2">
-              <input v-model="agreeToTerms" type="checkbox" class="w-4 h-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" required />
+            <!-- Agreement Checkbox -->
+            <div v-show="activeTab === 'account'" class="flex items-center space-x-2 pt-4">
+              <input v-model="agreeToTerms" type="checkbox" required 
+                class="w-4 h-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
               <span class="text-sm">I agree to the Terms of Service and Privacy Policy</span>
             </div>
 
-            <button type="submit" class="w-full bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition-all hover:scale-105">
-              Create Account
-            </button>
-
-            <p v-if="errorMessage" class="text-red-500 text-sm mt-2">{{ errorMessage }}</p>
-            <p v-if="successMessage" class="text-green-500 text-sm mt-2">{{ successMessage }}</p>
+            <!-- Error/Success Messages -->
+            <div>
+              <p v-if="errorMessage" class="text-red-500 text-sm mt-2">{{ errorMessage }}</p>
+              <p v-if="successMessage" class="text-green-500 text-sm mt-2">{{ successMessage }}</p>
+            </div>
           </form>
         </div>
       </main>
@@ -66,63 +360,6 @@
     </div>
   </div>
 </template>
-
-<script setup>
-import { ref } from 'vue';
-import { useRuntimeConfig } from '#imports';
-
-const username = ref('');
-const email = ref('');
-const password = ref('');
-const confirmPassword = ref('');
-const agreeToTerms = ref(false);
-const errorMessage = ref('');
-const successMessage = ref('');
-
-const handleSignup = async () => {
-  if (password.value !== confirmPassword.value) {
-    errorMessage.value = "Passwords do not match!";
-    successMessage.value = '';
-    return;
-  }
-
-  if (!agreeToTerms.value) {
-    errorMessage.value = "You must agree to the terms and conditions.";
-    successMessage.value = '';
-    return;
-  }
-
-  try {
-    const apiBase = useRuntimeConfig().public.API_BASE;
-
-    // Debugging: Log the payload before sending
-    console.log("Sending data:", {
-      username: username.value,
-      email: email.value,
-      password: password.value,
-    });
-
-    const response = await $fetch(`${apiBase}/signup/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',  // Ensure correct content type
-      },
-      body: JSON.stringify({  // Ensure correct request format
-        username: username.value,
-        email: email.value,
-        password: password.value,
-      }),
-    });
-
-    successMessage.value = response.message;
-    errorMessage.value = '';
-  } catch (error) {
-    console.error("Signup Error:", error);
-    errorMessage.value = error.data?.error || "Signup failed. Please try again.";
-    successMessage.value = '';
-  }
-};
-</script>
 
 
   <style scoped>

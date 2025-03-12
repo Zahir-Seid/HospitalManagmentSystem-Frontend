@@ -1,3 +1,86 @@
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRuntimeConfig } from '#imports'
+
+// Fetching runtime config
+const config = useRuntimeConfig()
+const apiBase = config.public.API_BASE
+
+// Appointments data
+const appointments = ref([])
+const newAppointment = ref({
+  doctor_id: null,
+  date: '',
+  time: '',
+  reason: ''
+})
+const errorMessage = ref('')
+
+// Fetch appointments
+const fetchAppointments = async () => {
+  try {
+    const response = await $fetch(`${apiBase}/appointments/list`)
+    appointments.value = response
+  } catch (error) {
+    errorMessage.value = 'Error fetching appointments.'
+    console.error('Error fetching appointments:', error)
+  }
+}
+
+// Create a new appointment
+const createAppointment = async () => {
+  try {
+    const response = await $fetch(`${apiBase}/appointments/create`, {
+      method: 'POST',
+      body: newAppointment.value,
+    })
+    appointments.value.push(response) // Add the new appointment to the list
+    alert('Appointment created successfully')
+    newAppointment.value = { doctor_id: null, date: '', time: '', reason: '' } // Reset form
+  } catch (error) {
+    errorMessage.value = 'Error creating appointment.'
+    console.error('Error creating appointment:', error)
+  }
+}
+
+// Update an appointment
+const updateAppointment = async (appointmentId, updatedData) => {
+  try {
+    const response = await $fetch(`${apiBase}/appointments/update/${appointmentId}`, {
+      method: 'PUT',
+      body: updatedData,
+    })
+    const index = appointments.value.findIndex(app => app.id === appointmentId)
+    if (index !== -1) {
+      appointments.value[index] = response // Update the appointment in the list
+    }
+    alert('Appointment updated successfully')
+  } catch (error) {
+    errorMessage.value = 'Error updating appointment.'
+    console.error('Error updating appointment:', error)
+  }
+}
+
+// Delete an appointment
+const deleteAppointment = async (appointmentId) => {
+  try {
+    await $fetch(`${apiBase}/appointments/delete/${appointmentId}`, {
+      method: 'DELETE',
+    })
+    appointments.value = appointments.value.filter(app => app.id !== appointmentId) // Remove the appointment from the list
+    alert('Appointment deleted successfully')
+  } catch (error) {
+    errorMessage.value = 'Error deleting appointment.'
+    console.error('Error deleting appointment:', error)
+  }
+}
+
+// Fetch appointments when the component is mounted
+onMounted(() => {
+  fetchAppointments()
+})
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -6,55 +89,27 @@
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
             <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
-            <a
-              href="/profile"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">person</span>
-              Profile
+            <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
-            <a
-              href="/appointments"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">event</span>
-              Appointments
+            <a href="/patient/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">event</span> Appointments
             </a>
-            <a
-              href="/medical-history"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">medical_services</span>
-              Medical History
+            <a href="/patient/medicalhistory" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">medical_services</span> Medical History
             </a>
-            <a
-              href="/billing"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">receipt</span>
-              Billing
+            <a href="/patient/bills" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
-            <a
-              href="/notifications"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">notifications</span>
-              Notifications
+            <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
               <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
             </a>
-            <a
-              href="/chat"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">chat</span>
-              Chat
+            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">chat</span> Chat
             </a>
-            <a
-              href="/feedback"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">comment</span>
-              Feedback
+            <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">comment</span> Feedback
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -67,40 +122,45 @@
           <!-- New Appointment Form -->
           <div class="bg-white rounded-xl shadow-lg p-6 mb-8 hover:shadow-xl transition-all duration-300">
             <h3 class="text-emerald-600 text-xl font-bold mb-4">New Appointment</h3>
-            <form>
+            <form @submit.prevent="createAppointment">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="relative">
                   <label class="block text-sm font-medium text-emerald-700 mb-1">Doctor</label>
-                  <select class="w-full border border-emerald-200 focus:ring-2 focus:ring-emerald-600 rounded-lg p-2 outline-none">
-                    <option>Dr. Sarah Johnson</option>
-                    <option>Dr. Michael Chen</option>
-                    <option>Dr. Emily Brown</option>
+                  <select v-model="newAppointment.doctor_id" class="w-full border border-emerald-200 focus:ring-2 focus:ring-emerald-600 rounded-lg p-2 outline-none" required>
+                    <option v-for="doctor in doctors" :key="doctor.id" :value="doctor.id">{{ doctor.name }}</option>
                   </select>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-emerald-700 mb-1">Date</label>
                     <input
+                      v-model="newAppointment.date"
                       type="date"
                       class="w-full border border-emerald-200 focus:ring-2 focus:ring-emerald-600 rounded-lg p-2 outline-none"
+                      required
                     />
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-emerald-700 mb-1">Time</label>
                     <input
+                      v-model="newAppointment.time"
                       type="time"
                       class="w-full border border-emerald-200 focus:ring-2 focus:ring-emerald-600 rounded-lg p-2 outline-none"
+                      required
                     />
                   </div>
                 </div>
                 <div class="md:col-span-2">
                   <label class="block text-sm font-medium text-emerald-700 mb-1">Reason</label>
                   <textarea
+                    v-model="newAppointment.reason"
                     class="w-full border border-emerald-200 focus:ring-2 focus:ring-emerald-600 rounded-lg p-2 outline-none h-24 resize-none"
+                    required
                   ></textarea>
                 </div>
               </div>
               <button
+                type="submit"
                 class="mt-4 bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-all duration-300 hover:scale-105 hover:shadow-lg"
               >
                 Schedule Appointment
@@ -132,32 +192,19 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
-                    <td class="py-4 px-4">Dr. Sarah Johnson</td>
-                    <td class="py-4 px-4">2024-02-15 09:30 AM</td>
+                  <tr v-for="appointment in appointments" :key="appointment.id" class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
+                    <td class="py-4 px-4">{{ appointment.doctor }}</td>
+                    <td class="py-4 px-4">{{ new Date(appointment.date).toLocaleString() }}</td>
                     <td class="py-4 px-4">
-                      <span class="px-3 py-1 rounded-full text-sm bg-emerald-100 text-emerald-800">Confirmed</span>
+                      <span :class="`px-3 py-1 rounded-full text-sm ${appointment.status === 'Confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`">
+                        {{ appointment.status }}
+                      </span>
                     </td>
                     <td class="py-4 px-4 space-x-2">
-                      <button class="p-1 hover:bg-emerald-100 rounded transition-all duration-200">
+                      <button @click="updateAppointment(appointment.id, { status: 'Confirmed', reason: appointment.reason })" class="p-1 hover:bg-emerald-100 rounded transition-all duration-200">
                         <span class="material-symbols-outlined text-emerald-600 hover:text-emerald-700">edit</span>
                       </button>
-                      <button class="p-1 hover:bg-red-100 rounded transition-all duration-200">
-                        <span class="material-symbols-outlined text-red-500 hover:text-red-600">delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
-                    <td class="py-4 px-4">Dr. Michael Chen</td>
-                    <td class="py-4 px-4">2024-02-16 02:00 PM</td>
-                    <td class="py-4 px-4">
-                      <span class="px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-800">Pending</span>
-                    </td>
-                    <td class="py-4 px-4 space-x-2">
-                      <button class="p-1 hover:bg-emerald-100 rounded transition-all duration-200">
-                        <span class="material-symbols-outlined text-emerald-600 hover:text-emerald-700">edit</span>
-                      </button>
-                      <button class="p-1 hover:bg-red-100 rounded transition-all duration-200">
+                      <button @click="deleteAppointment(appointment.id)" class="p-1 hover:bg-red-100 rounded transition-all duration-200">
                         <span class="material-symbols-outlined text-red-500 hover:text-red-600">delete</span>
                       </button>
                     </td>

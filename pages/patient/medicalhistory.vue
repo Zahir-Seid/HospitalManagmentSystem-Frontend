@@ -1,86 +1,117 @@
+<script setup>
+const router = useRouter();
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+const medicalHistory = ref(null);
+const loading = ref(true);
+const errorMessage = ref('');
+
+const fetchMedicalHistory = async () => {
+  try {
+    const response = await $fetch(`${apiBase}/patients/history/medical`);
+    medicalHistory.value = response;
+  } catch (error) {
+    errorMessage.value = 'Failed to load medical history. Please try again.';
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Fetch data when the component loads
+onMounted(fetchMedicalHistory);
+</script>
+
 <template>
-    <div id="webcrumbs">
-      <div class="h-[1080px]"> 
-        <div class="flex h-full"> 
-          <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between"> 
-            <nav class="space-y-4"> 
-              <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div> 
-              <a href="/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                <span class="material-symbols-outlined mr-2">person</span> Profile </a> 
-                <a href="/medical-history" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                  <span class="material-symbols-outlined mr-2">medical_services</span> Medical History </a> 
-                  <a href="/billing" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                    <span class="material-symbols-outlined mr-2">receipt</span> Billing </a> 
-                    <a href="/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                      <span class="material-symbols-outlined mr-2">notifications</span> Notifications <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span> </a> 
-                      <a href="/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> <span class="material-symbols-outlined mr-2">chat</span> Chat </a> 
-                      <a href="/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> <span class="material-symbols-outlined mr-2">comment</span> Feedback </a> 
-                    </nav> 
-                    <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"> © 2025 Assosa General Hospital. All rights reserved. </div> 
-                  </aside> 
-                  <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto"> 
-                    <div class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-xl mb-8 flex flex-col md:flex-row justify-between items-center"> 
-                      <h2 class="text-2xl font-bold text-emerald-900 mb-4 md:mb-0">Medical History</h2> 
-                      <button class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-all duration-300 hover:scale-105 flex items-center"> 
-                        <span class="material-symbols-outlined mr-2">download</span> Download PDF Report </button> </div> 
-                        <div class="grid grid-cols-3 gap-4 mb-8"> <button class="p-4 text-center rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 transition-all duration-300"> Lab Tests </button> 
-                          <button class="p-4 text-center rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 transition-all duration-300"> Prescriptions </button> 
-                          <button class="p-4 text-center rounded-xl bg-white text-emerald-700 hover:bg-emerald-50 transition-all duration-300"> Medical History </button> 
-                        </div> 
-                        <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 mb-8"> 
-                          <div class="bg-emerald-50 p-4 border-b border-emerald-100"> <h3 class="text-lg font-semibold text-emerald-900">Lab Test Results</h3> </div> 
-                          <div class="overflow-x-auto"> 
-                            <table class="w-full"> 
-                              <thead class="bg-emerald-50"> 
-                                <tr> 
-                                  <th class="p-4 text-left text-emerald-700">Date</th> 
-                                  <th class="p-4 text-left text-emerald-700">Test Type</th> 
-                                  <th class="p-4 text-left text-emerald-700">Doctor</th> 
-                                  <th class="p-4 text-left text-emerald-700">Status</th> 
-                                </tr> 
-                              </thead> 
-                              <tbody> 
-                                <tr class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"> 
-                                  <td class="p-4">2024-02-10</td> <td class="p-4">Blood Test</td> 
-                                  <td class="p-4">Dr. Sarah Johnson</td> 
-                                  <td class="p-4"> 
-                                    <span class="px-3 py-1 rounded-full text-sm bg-emerald-100 text-emerald-800"> Completed </span> 
-                                  </td> 
-                                </tr> 
-                                <tr class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"> 
-                                  <td class="p-4">2024-02-16</td> 
-                                  <td class="p-4">X-Ray</td> 
-                                  <td class="p-4">Dr. Michael Chen</td> 
-                                  <td class="p-4"> 
-                                    <span class="px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-800"> Pending </span> 
-                                  </td> 
-                                </tr> 
-                              </tbody> 
-                            </table> 
-                          </div> 
-                        </div> 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4"> 
-                          <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"> 
-                            <div class="flex justify-between items-start mb-4"> 
-                              <h4 class="text-emerald-900 font-semibold">Current Prescriptions</h4> 
-                              <span class="px-3 py-1 text-sm rounded-full bg-emerald-100 text-emerald-800"> Active </span> 
-                            </div> 
-                            <p class="text-sm text-gray-600 mb-2">Prescribed by: Dr. Sarah Johnson</p> 
-                            <p class="text-sm text-gray-600">Last Updated: 2024-02-10</p> 
-                          </div> 
-                          <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"> 
-                            <div class="flex justify-between items-start mb-4"> 
-                              <h4 class="text-emerald-900 font-semibold">Previous Results</h4> 
-                              <span class="px-3 py-1 text-sm rounded-full bg-emerald-100 text-emerald-800"> Available </span> 
-                            </div> <p class="text-sm text-gray-600 mb-2">Last Test: Blood Work</p> 
-                            <p class="text-sm text-gray-600">Date: 2024-02-16</p> 
-                          </div> 
-                        </div> 
-                      </main> 
-                    </div> 
-                  </div>
+  <div id="webcrumbs">
+    <div class="h-[1080px]">
+      <div class="flex h-full">
+        <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
+          <nav class="space-y-4">
+            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
+            <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">person</span> Profile
+            </a>
+            <a href="/patient/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">event</span> Appointments
+            </a>
+            <a href="/patient/medicalhistory" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">medical_services</span> Medical History
+            </a>
+            <a href="/patient/bills" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">receipt</span> Billing
+            </a>
+            <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
+              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+            </a>
+            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">chat</span> Chat
+            </a>
+            <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">comment</span> Feedback
+            </a>
+          </nav>
+          <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
+            © 2025 Assosa General Hospital. All rights reserved.
+          </div>
+        </aside>
+
+        <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
+          <div class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-xl mb-8 flex flex-col md:flex-row justify-between items-center">
+            <h2 class="text-2xl font-bold text-emerald-900 mb-4 md:mb-0">Medical History</h2>
+            <button class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-all duration-300 hover:scale-105 flex items-center">
+              <span class="material-symbols-outlined mr-2">download</span> Download PDF Report
+            </button>
+          </div>
+
+          <div v-if="loading" class="text-center text-emerald-700">Loading medical history...</div>
+          <div v-else-if="errorMessage" class="text-center text-red-500">{{ errorMessage }}</div>
+
+          <template v-else>
+            <!-- Lab Tests -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 mb-8">
+              <div class="bg-emerald-50 p-4 border-b border-emerald-100">
+                <h3 class="text-lg font-semibold text-emerald-900">Lab Test Results</h3>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-emerald-50">
+                    <tr>
+                      <th class="p-4 text-left text-emerald-700">Test Name</th>
+                      <th class="p-4 text-left text-emerald-700">Status</th>
+                      <th class="p-4 text-left text-emerald-700">Result</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="test in medicalHistory.lab_tests" :key="test.id" class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
+                      <td class="p-4">{{ test.test_name }}</td>
+                      <td class="p-4">{{ test.status }}</td>
+                      <td class="p-4">{{ test.result }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Prescriptions -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div v-for="prescription in medicalHistory.prescriptions" :key="prescription.id" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                <div class="flex justify-between items-start mb-4">
+                  <h4 class="text-emerald-900 font-semibold">{{ prescription.medication_name }}</h4>
+                  <span class="px-3 py-1 text-sm rounded-full bg-emerald-100 text-emerald-800">{{ prescription.status }}</span>
                 </div>
-  </template>
+                <p class="text-sm text-gray-600 mb-2">Prescribed by: {{ prescription.doctor }}</p>
+                <p class="text-sm text-gray-600">{{ prescription.dosage }} — {{ prescription.instructions }}</p>
+              </div>
+            </div>
+          </template>
+        </main>
+      </div>
+    </div>
+  </div>
+</template>
+
   
   <style scoped>
     @import url(https://fonts.googleapis.com/css2?family=Inter&display=swap);
@@ -89,6 +120,7 @@
     
     /*! tailwindcss v3.4.11 | MIT License | https://tailwindcss.com*/
     *,
+    
     :after,
     :before {
       border: 0 solid #e5e7eb;

@@ -1,105 +1,181 @@
-<template>
-    <div id="webcrumbs">
-        <div class="w-[1200px]"> 
-            <div class="flex"> 
-                <aside class="w-full md:w-64 bg-emerald-900 p-6 md:h-screen flex flex-col justify-between"> 
-                    <nav class="space-y-4"> 
-                        <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div> 
-                        
-                        <a href="/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                            <span class="material-symbols-outlined mr-2">person</span> Profile 
-                        </a> 
-                        
-                        <a href="/appointments" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                            <span class="material-symbols-outlined mr-2">event</span> Appointments 
-                        </a>
-                        
-                        <a href="/medical-history" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                            <span class="material-symbols-outlined mr-2">medical_services</span> Medical History 
-                        </a> 
-                        
-                        <a href="/billing" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                            <span class="material-symbols-outlined mr-2">receipt</span> Billing 
-                        </a> 
-                        
-                        <a href="/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                            <span class="material-symbols-outlined mr-2">notifications</span> Notifications 
-                            <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span> 
-                        </a> 
-                        
-                        <a href="/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                            <span class="material-symbols-outlined mr-2">chat</span> Chat 
-                        </a> 
-                        
-                        <a href="/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                            <span class="material-symbols-outlined mr-2">comment</span> Feedback 
-                        </a> 
-                    </nav> 
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useRuntimeConfig } from '#imports'
 
-                    <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"> 
-                        © 2025 Assosa General Hospital. All rights reserved. 
-                    </div> 
-                </aside>                         
-                <main class="flex-1 bg-emerald-50 p-8"> 
-                    <div class="mb-8 flex items-center justify-between"> 
-                        <h1 class="text-3xl font-bold">Patient Profile</h1> 
-                        <div class="flex items-center gap-4"> 
-                            <span class="rounded-full bg-emerald-100 px-4 py-1 font-medium text-emerald-700">Active</span> 
-                            <button class="rounded-full bg-emerald-600 px-6 py-2 font-medium text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg"> Edit Profile </button> 
-                            <button class="rounded-full bg-red-600 px-6 py-2 font-medium text-white transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg"> Delete Profile </button> 
-                        </div> 
-                    </div> 
-                    <div class="rounded-xl bg-white p-6 shadow-lg transition hover:shadow-xl"> 
-                        <div class="-m-6 mb-6 rounded-t-xl bg-gradient-to-r from-emerald-100 to-white p-6"> 
-                            <div class="flex items-center gap-6"> 
-                                <div class="h-24 w-24 rounded-full bg-emerald-200 overflow-hidden"> 
-                                <img src="https://placehold.co/96x96" alt="Profile" class="h-full w-full object-cover"/> </div> 
-                                <div> 
-                                    <h2 class="text-2xl font-bold text-emerald-900">Profile Information</h2> 
-                                    <div class="mt-2 text-emerald-600"> 
-                                        <span class="font-medium">John Michael Doe</span> 
-                                    </div> 
-                                </div> 
-                            </div> 
-                        </div> 
-                        <div class="space-y-4"> 
-                            <div class="grid grid-cols-2 gap-4"> 
-                                <div> 
-                                    <label class="block text-sm font-medium text-emerald-700">First Name:</label> 
-                                    <p class="mt-1 p-2 rounded-lg bg-emerald-50">John</p> 
-                                </div> 
-                                <div> 
-                                    <label class="block text-sm font-medium text-emerald-700">Middle Name:</label> 
-                                    <p class="mt-1 p-2 rounded-lg bg-emerald-50">Michael</p> 
-                                </div> 
-                                <div> 
-                                    <label class="block text-sm font-medium text-emerald-700">Last Name:</label> 
-                                    <p class="mt-1 p-2 rounded-lg bg-emerald-50">Doe</p> 
-                                </div> 
-                            </div> 
-                            <div class="pt-4"> 
-                                <label class="block text-sm font-medium text-emerald-700">Region:</label> 
-                                <p class="mt-1 p-2 rounded-lg bg-emerald-50">Benishangul-Gumuz</p> 
-                            </div> 
-                            <div> 
-                                <label class="block text-sm font-medium text-emerald-700">Town:</label> 
-                                <p class="mt-1 p-2 rounded-lg bg-emerald-50">Assosa</p> 
-                            </div> 
-                            <div> 
-                                <label class="block text-sm font-medium text-emerald-700">Kebele:</label> 
-                                <p class="mt-1 p-2 rounded-lg bg-emerald-50">01</p> 
-                            </div> 
-                            <div> 
-                                <label class="block text-sm font-medium text-emerald-700">House Number:</label> 
-                                <p class="mt-1 p-2 rounded-lg bg-emerald-50">123</p> 
-                            </div> 
-                        </div> 
-                    </div> 
-                </main> 
-            </div> 
-        </div>
+// Fetching runtime config
+const config = useRuntimeConfig()
+const apiBase = config.public.API_BASE  // Correct way to access the runtime config
+
+// Profile data
+const profile = ref({
+  first_name: '',
+  middle_name: '',
+  last_name: '',
+  region: '',
+  town: '',
+  kebele: '',
+  house_number: '',
+  profile_picture: '' // Add profile picture field
+})
+
+const errorMessage = ref('')
+const isEditing = ref(false) // Add editing state
+
+// API logic for fetching profile data
+const fetchProfile = async () => {
+  try {
+    const response = await $fetch(`${apiBase}/patients/profile`)
+    profile.value = response
+  } catch (error) {
+    errorMessage.value = 'Error fetching profile data.'
+    console.error('Error fetching profile:', error)
+  }
+}
+
+// API logic for updating profile data
+const updateProfile = async () => {
+  try {
+    await $fetch(`${apiBase}/user/profile/`, {
+      method: 'PUT',
+      body: profile.value,
+    })
+    alert('Profile updated successfully')
+    isEditing.value = false // Exit editing mode
+  } catch (error) {
+    errorMessage.value = 'Error updating profile.'
+    console.error('Error updating profile:', error)
+  }
+}
+
+// API logic for deleting profile
+const deleteProfile = async () => {
+  try {
+    await $fetch(`${apiBase}/user/profile/`, {
+      method: 'DELETE',
+    })
+    alert('Profile deleted successfully')
+  } catch (error) {
+    errorMessage.value = 'Error deleting profile.'
+    console.error('Error deleting profile:', error)
+  }
+}
+
+// Fetch profile data when component is mounted
+onMounted(() => {
+  fetchProfile()
+})
+</script>
+
+<template>
+  <div id="webcrumbs">
+    <div class="w-full"> <!-- Changed to w-full to take full width -->
+      <div class="flex">
+        <aside class="w-full md:w-64 bg-emerald-900 p-6 md:h-screen flex flex-col justify-between">
+          <nav class="space-y-4">
+            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
+            <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">person</span> Profile
+            </a>
+            <a href="/patient/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">event</span> Appointments
+            </a>
+            <a href="/patient/medicalhistory" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">medical_services</span> Medical History
+            </a>
+            <a href="/patient/bills" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">receipt</span> Billing
+            </a>
+            <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
+              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+            </a>
+            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">chat</span> Chat
+            </a>
+            <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">comment</span> Feedback
+            </a>
+          </nav>
+          <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
+            © 2025 Assosa General Hospital. All rights reserved.
+          </div>
+        </aside>
+        <main class="flex-1 bg-emerald-50 p-8 overflow-auto"> <!-- Added overflow-auto to handle content overflow -->
+          <div class="mb-8 flex items-center justify-between">
+            <h1 class="text-3xl font-bold">Patient Profile</h1>
+            <div class="flex items-center gap-4">
+              <span class="rounded-full bg-emerald-100 px-4 py-1 font-medium text-emerald-700">Active</span>
+              <button @click="isEditing = !isEditing" class="rounded-full bg-emerald-600 px-6 py-2 font-medium text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg">
+                {{ isEditing ? 'Cancel' : 'Edit Profile' }}
+              </button>
+              <button @click="deleteProfile" class="rounded-full bg-red-600 px-6 py-2 font-medium text-white transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg"> Delete Profile </button>
+            </div>
+          </div>
+          <div class="rounded-xl bg-white p-6 shadow-lg transition hover:shadow-xl">
+            <div class="-m-6 mb-6 rounded-t-xl bg-gradient-to-r from-emerald-100 to-white p-6">
+              <div class="flex items-center gap-6">
+                <div class="h-24 w-24 rounded-full bg-emerald-200 overflow-hidden">
+                  <img :src="profile.profile_picture || 'https://placehold.co/96x96'" alt="Profile" class="h-full w-full object-cover"/>
+                </div>
+                <div>
+                  <h2 class="text-2xl font-bold text-emerald-900">Profile Information</h2>
+                  <div class="mt-2 text-emerald-600">
+                    <span class="font-medium">{{ profile.first_name }} {{ profile.middle_name }} {{ profile.last_name }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label v-if="isEditing" class="block text-sm font-medium text-emerald-700">Profile Picture:</label>
+                <input v-if="isEditing" type="file" @change="handleFileChange" accept="image/*" class="mt-1 p-2 rounded-lg bg-emerald-50 w-full" />
+                  <label class="block text-sm font-medium text-emerald-700">First Name:</label>
+                  <input v-if="isEditing" v-model="profile.first_name" class="mt-1 p-2 rounded-lg bg-emerald-50 w-full" />
+                  <p v-else class="mt-1 p-2 rounded-lg bg-emerald-50">{{ profile.first_name }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-emerald-700">Middle Name:</label>
+                  <input v-if="isEditing" v-model="profile.middle_name" class="mt-1 p-2 rounded-lg bg-emerald-50 w-full" />
+                  <p v-else class="mt-1 p-2 rounded-lg bg-emerald-50">{{ profile.middle_name }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-emerald-700">Last Name:</label>
+                  <input v-if="isEditing" v-model="profile.last_name" class="mt-1 p-2 rounded-lg bg-emerald-50 w-full" />
+                  <p v-else class="mt-1 p-2 rounded-lg bg-emerald-50">{{ profile.last_name }}</p>
+                </div>
+              </div>
+              <div class="pt-4">
+                <label class="block text-sm font-medium text-emerald-700">Region:</label>
+                <input v-if="isEditing" v-model="profile.region" class="mt-1 p-2 rounded-lg bg-emerald-50 w-full" />
+                <p v-else class="mt-1 p-2 rounded-lg bg-emerald-50">{{ profile.region }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-emerald-700">Town:</label>
+                <input v-if="isEditing" v-model="profile.town" class="mt-1 p-2 rounded-lg bg-emerald-50 w-full" />
+                <p v-else class="mt-1 p-2 rounded-lg bg-emerald-50">{{ profile.town }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-emerald-700">Kebele:</label>
+                <input v-if="isEditing" v-model="profile.kebele" class="mt-1 p-2 rounded-lg bg-emerald-50 w-full" />
+                <p v-else class="mt-1 p-2 rounded-lg bg-emerald-50">{{ profile.kebele }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-emerald-700">House Number:</label>
+                <input v-if="isEditing" v-model="profile.house_number" class="mt-1 p-2 rounded-lg bg-emerald-50 w-full" />
+                <p v-else class="mt-1 p-2 rounded-lg bg-emerald-50">{{ profile.house_number }}</p>
+              </div>
+              <div v-if="isEditing" class="pt-4">
+                <button @click="updateProfile" class="rounded-full bg-emerald-600 px-6 py-2 font-medium text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg">Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
-  </template>
+  </div>
+</template>
   
   <style scoped>
     @import url(https://fonts.googleapis.com/css2?family=Inter&display=swap);

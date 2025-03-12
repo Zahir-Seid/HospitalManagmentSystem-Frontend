@@ -1,3 +1,57 @@
+<script>
+export default {
+  data() {
+    return {
+      socket: null, // WebSocket connection
+      messages: [], // Array to hold messages
+      newMessage: '', // New message input
+    };
+  },
+  mounted() {
+    this.setupWebSocket();
+  },
+  beforeDestroy() {
+    this.socket.close(); // Close WebSocket connection when component is destroyed
+  },
+  methods: {
+    // Establish WebSocket connection
+    setupWebSocket() {
+      const wsUrl = 'ws://localhost:8000/ws/chat/';
+      this.socket = new WebSocket(wsUrl);
+
+      this.socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        this.messages.push(message);
+      };
+
+      this.socket.onopen = () => {
+        console.log('Connected to WebSocket');
+      };
+
+      this.socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+      this.socket.onclose = () => {
+        console.log('WebSocket connection closed');
+      };
+    },
+    
+    // Send a message through WebSocket
+    sendMessage() {
+      if (this.newMessage.trim() === '') return;
+      const message = {
+        content: this.newMessage,
+        // You can add more details, like sender, timestamp, etc.
+      };
+
+      this.socket.send(JSON.stringify(message));
+      this.newMessage = ''; // Clear the input field after sending the message
+    },
+  },
+};
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -5,88 +59,29 @@
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
             <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
-
-            <a href="/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
-
-            <a href="/medical-history" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">event</span> Appointments
+            </a>
+            <a href="/patient/medicalhistory" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">medical_services</span> Medical History
             </a>
-
-            <a href="/billing" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/bills" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
-
-            <div class="relative">
-              <details class="group">
-                <summary class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 cursor-pointer">
-                  <span class="material-symbols-outlined mr-2">notifications</span> Notifications
-                  <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">5</span>
-                  <span class="material-symbols-outlined ml-auto group-open:rotate-180 transition-transform">expand_more</span>
-                </summary>
-
-                <div class="absolute left-0 w-72 mt-2 bg-white rounded-lg shadow-xl overflow-hidden z-50">
-                  <div class="p-4 border-b border-gray-100">
-                    <div class="flex justify-between items-center">
-                      <h3 class="text-emerald-900 font-semibold">Notifications</h3>
-                      <button class="text-sm text-emerald-600 hover:text-emerald-700">Mark all as read</button>
-                    </div>
-                  </div>
-
-                  <div class="max-h-64 overflow-y-auto">
-                    <div class="p-4 hover:bg-emerald-50 border-b border-gray-100 transition-colors">
-                      <div class="flex items-start space-x-3">
-                        <input type="checkbox" class="mt-1.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
-                        <div class="flex-1">
-                          <div class="flex items-start">
-                            <span class="material-symbols-outlined text-emerald-600 mr-3">calendar_today</span>
-                            <div>
-                              <p class="text-sm text-gray-800">Appointment reminder: Dr. Smith tomorrow at 10:00 AM</p>
-                              <p class="text-xs text-gray-500 mt-1">2 hours ago</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="p-4 hover:bg-emerald-50 border-b border-gray-100 transition-colors">
-                      <div class="flex items-start space-x-3">
-                        <input type="checkbox" class="mt-1.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
-                        <div class="flex-1">
-                          <div class="flex items-start">
-                            <span class="material-symbols-outlined text-emerald-600 mr-3">lab_profile</span>
-                            <div>
-                              <p class="text-sm text-gray-800">Lab results are ready for review</p>
-                              <p class="text-xs text-gray-500 mt-1">1 day ago</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="p-4 bg-emerald-50 flex justify-between">
-                    <button class="text-sm text-red-600 hover:text-red-700 flex items-center">
-                      <span class="material-symbols-outlined mr-1">delete</span> Delete Selected
-                    </button>
-                    <button class="text-sm text-emerald-600 hover:text-emerald-700 flex items-center">
-                      <span class="material-symbols-outlined mr-1">check_circle</span> Mark Selected as Read
-                    </button>
-                  </div>
-                </div>
-              </details>
-            </div>
-
-            <a href="/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
+              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+            </a>
+            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">chat</span> Chat
             </a>
-
-            <a href="/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">comment</span> Feedback
             </a>
           </nav>
-
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
           </div>

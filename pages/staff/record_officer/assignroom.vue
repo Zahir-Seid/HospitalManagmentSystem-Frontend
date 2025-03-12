@@ -7,21 +7,21 @@
           <nav class="space-y-4">
             <div class="text-white text-xl font-bold mb-8">Record Officer Dashboard</div>
             <a
-              href="/pending-registrations"
+              href="/staff/record_officer/patient_registrar"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">person_add</span>
               Pending Registrations
             </a>
             <a
-              href="/patient-records"
+              href="/staff/record_officer/patient_record"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">folder_supervised</span>
               Patient Records
             </a>
             <a
-              href="/notifications"
+              href="/staff/record_officer/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
@@ -29,7 +29,7 @@
               <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">3</span>
             </a>
             <a
-              href="/inbox"
+              href="/staff/record_officer/inbox"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
@@ -37,15 +37,15 @@
               <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">2</span>
             </a>
             <a
-              href="/attendance"
+              href="/staff/record_officer/attendance"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">schedule</span>
               Attendance
             </a>
             <a
-              href="/assign-room"
-              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/record_officer/assignroom"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">meeting_room</span>
               Assign Room

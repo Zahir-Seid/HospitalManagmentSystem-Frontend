@@ -1,3 +1,39 @@
+<script setup>
+import { ref } from 'vue'
+const config = useRuntimeConfig()
+const apiBase = config.public.API_BASE
+
+const feedbackMessage = ref('')
+const feedbackSuccess = ref(false)
+const feedbackError = ref('')
+const isSending = ref(false)
+
+const sendFeedback = async () => {
+  if (!feedbackMessage.value.trim()) {
+    feedbackError.value = 'Feedback cannot be empty.'
+    return
+  }
+
+  feedbackSuccess.value = false
+  feedbackError.value = ''
+  isSending.value = true
+
+  try {
+    const response = await $fetch(`${apiBase}/patients/comment`, {
+      method: 'POST',
+      body: { message: feedbackMessage.value },
+    })
+
+    feedbackMessage.value = ''
+    feedbackSuccess.value = true
+  } catch (error) {
+    feedbackError.value = error?.data?.message || 'Failed to send feedback. Please try again later.'
+  } finally {
+    isSending.value = false
+  }
+}
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -5,142 +41,31 @@
         <!-- Sidebar -->
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">
-              Patient Dashboard
-            </div>
-            <a
-              href="/profile"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">person</span>
-              Profile
+            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
+            <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
-            <a
-              href="/medical-history"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">medical_services</span>
-              Medical History
+            <a href="/patient/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">event</span> Appointments
             </a>
-            <a
-              href="/billing"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">receipt</span>
-              Billing
+            <a href="/patient/medicalhistory" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">medical_services</span> Medical History
             </a>
-
-            <!-- Notifications Dropdown -->
-            <div class="relative">
-              <details class="group">
-                <summary
-                  class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 cursor-pointer"
-                >
-                  <span class="material-symbols-outlined mr-2">notifications</span>
-                  Notifications
-                  <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                    5
-                  </span>
-                  <span class="material-symbols-outlined ml-auto group-open:rotate-180 transition-transform">
-                    expand_more
-                  </span>
-                </summary>
-                <div
-                  class="absolute left-0 w-72 mt-2 bg-white rounded-lg shadow-xl overflow-hidden z-50"
-                >
-                  <div class="p-4 border-b border-gray-100">
-                    <div class="flex justify-between items-center">
-                      <h3 class="text-emerald-900 font-semibold">Notifications</h3>
-                      <button class="text-sm text-emerald-600 hover:text-emerald-700">
-                        Mark all as read
-                      </button>
-                    </div>
-                  </div>
-                  <div class="max-h-64 overflow-y-auto">
-                    <div
-                      class="p-4 hover:bg-emerald-50 border-b border-gray-100 transition-colors"
-                    >
-                      <div class="flex items-start space-x-3">
-                        <input
-                          type="checkbox"
-                          class="mt-1.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <div class="flex-1">
-                          <div class="flex items-start">
-                            <span class="material-symbols-outlined text-emerald-600 mr-3">
-                              calendar_today
-                            </span>
-                            <div>
-                              <p class="text-sm text-gray-800">
-                                Appointment reminder: Dr. Smith tomorrow at 10:00 AM
-                              </p>
-                              <p class="text-xs text-gray-500 mt-1">2 hours ago</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      class="p-4 hover:bg-emerald-50 border-b border-gray-100 transition-colors"
-                    >
-                      <div class="flex items-start space-x-3">
-                        <input
-                          type="checkbox"
-                          class="mt-1.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <div class="flex-1">
-                          <div class="flex items-start">
-                            <span class="material-symbols-outlined text-emerald-600 mr-3">
-                              lab_profile
-                            </span>
-                            <div>
-                              <p class="text-sm text-gray-800">
-                                Lab results are ready for review
-                              </p>
-                              <p class="text-xs text-gray-500 mt-1">1 day ago</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="p-4 bg-emerald-50 flex justify-between">
-                    <button
-                      class="text-sm text-red-600 hover:text-red-700 flex items-center"
-                    >
-                      <span class="material-symbols-outlined mr-1">delete</span>
-                      Delete Selected
-                    </button>
-                    <button
-                      class="text-sm text-emerald-600 hover:text-emerald-700 flex items-center"
-                    >
-                      <span class="material-symbols-outlined mr-1">check_circle</span>
-                      Mark Selected as Read
-                    </button>
-                  </div>
-                </div>
-              </details>
-            </div>
-
-            <a
-              href="/chat"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">chat</span>
-              Chat
+            <a href="/patient/bills" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
-            <a
-              href="/feedback"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">comment</span>
-              Feedback
+            <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
+              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+            </a>
+            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">chat</span> Chat
+            </a>
+            <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">comment</span> Feedback
             </a>
           </nav>
-
-          <div
-            class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"
-          >
+          <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
           </div>
         </aside>
@@ -153,19 +78,24 @@
                 <div class="bg-gray-50 p-6 rounded-xl">
                   <h4 class="text-lg font-semibold mb-4">Share Your Feedback</h4>
                   <p class="text-sm text-gray-600 mb-4">
-                    Help us improve our services by sharing your experience at Assosa
-                    General Hospital.
+                    Help us improve our services by sharing your experience at Assosa General Hospital.
                   </p>
                   <textarea
+                    v-model="feedbackMessage"
                     placeholder="Write your feedback here..."
                     class="w-full h-32 p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 resize-none"
                   ></textarea>
                   <button
+                    @click="sendFeedback"
+                    :disabled="isSending"
                     class="mt-4 px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center space-x-2"
                   >
-                    <span class="material-symbols-outlined text-sm">send</span>
-                    <span>Send Feedback</span>
+                    <span v-if="!isSending" class="material-symbols-outlined text-sm">send</span>
+                    <span v-if="isSending" class="material-symbols-outlined text-sm animate-spin">autorenew</span>
+                    <span>{{ isSending ? 'Sending...' : 'Send Feedback' }}</span>
                   </button>
+                  <p v-if="feedbackSuccess" class="text-green-600 mt-4">Thank you for your feedback!</p>
+                  <p v-if="feedbackError" class="text-red-600 mt-4">{{ feedbackError }}</p>
                 </div>
               </div>
             </div>

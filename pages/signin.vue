@@ -1,3 +1,36 @@
+<script setup>
+import { ref } from 'vue';
+import { useRouter, useRuntimeConfig } from '#imports';
+
+const router = useRouter();
+const config = useRuntimeConfig(); // Fetch runtime config
+const apiBase = config.public.API_BASE; // Correct way to access
+
+const username = ref('');
+const password = ref('');
+const errorMessage = ref('');
+
+const login = async () => {
+  try {
+    const response = await $fetch(`${apiBase}/user/login/`, {
+      method: 'POST',
+      body: {
+        username: username.value,
+        password: password.value,
+      },
+    });
+
+    // Store tokens
+    localStorage.setItem('access_token', response.access);
+    localStorage.setItem('refresh_token', response.refresh);
+
+    router.push('/patient/profile');
+  } catch (error) {
+    errorMessage.value = error.data?.error || 'Login failed.';
+  }
+};
+</script>
+
 <template>
     <div id="webcrumbs">
         <div class="w-full min-h-screen bg-gradient-to-br from-emerald-50 to-white"> 
@@ -36,40 +69,6 @@
             </div>
         </div>
   </template>
-  
-  <script setup>
-import { ref } from 'vue';
-import { useRouter, useRuntimeConfig } from '#imports';
-
-const router = useRouter();
-const config = useRuntimeConfig(); // Fetch runtime config
-const apiBase = config.public.API_BASE; // Correct way to access
-
-const username = ref('');
-const password = ref('');
-const errorMessage = ref('');
-
-const login = async () => {
-  try {
-    const response = await $fetch(`${apiBase}/login/`, {
-      method: 'POST',
-      body: {
-        username: username.value,
-        password: password.value,
-      },
-    });
-
-    // Store tokens
-    localStorage.setItem('access_token', response.access);
-    localStorage.setItem('refresh_token', response.refresh);
-
-    router.push('/dashboard');
-  } catch (error) {
-    errorMessage.value = error.data?.error || 'Login failed.';
-  }
-};
-</script>
-
   
   <style scoped>
     @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);
