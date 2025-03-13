@@ -1,3 +1,54 @@
+<script setup>
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+const patientName = ref('');
+const patientId = ref('');
+const services = ref([]);
+const totalAmount = ref(0);
+const billingResponse = ref(null);
+
+async function fetchBillingData() {
+  try {
+    const response = await fetch(`${apiBase}/api/billings/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`
+      },
+      body: JSON.stringify({
+        patient_id: patientId.value,
+        amount: totalAmount.value,
+        description: 'Consultation and Laboratory Tests'
+      })
+    });
+    if (!response.ok) throw new Error('Failed to create invoice');
+    billingResponse.value = await response.json();
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+  }
+}
+
+function addService(service, price) {
+  services.value.push({ name: service, price });
+  totalAmount.value += price;
+}
+
+function handleProcessPayment() {
+  if (!patientId.value || !totalAmount.value) {
+    alert('Please fill out all required fields.');
+    return;
+  }
+  fetchBillingData();
+}
+
+// Simulate adding services dynamically for demonstration
+onMounted(() => {
+  addService('Consultation', 150.00);
+  addService('Laboratory Test', 75.00);
+});
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -6,46 +57,40 @@
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
             <div class="text-white text-xl font-bold mb-8">Cashier Dashboard</div>
-
             <a
-              href="/approve-payments"
+              href="/staff/cashier/approve"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">payments</span>
               Approve Payments
             </a>
-
             <a
-              href="/order-bill"
-              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/cashier/orderbill"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">receipt_long</span>
               Order Bill
             </a>
-
             <a
-              href="/payment-history"
+              href="/staff/cashier/paymenthistory"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">history</span>
               Payment History
             </a>
-
             <a
-              href="/inbox"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/cashier/inbox"
+              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
             </a>
-
             <a
-              href="/notifications"
+              href="/staff/cashier/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">5</span>
             </a>
           </nav>
 
@@ -77,6 +122,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-2">Patient Name</label>
                     <input
+                      v-model="patientName"
                       type="text"
                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                       placeholder="Enter patient name"
@@ -85,6 +131,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-2">Patient ID</label>
                     <input
+                      v-model="patientId"
                       type="text"
                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                       placeholder="Enter patient ID"
@@ -117,7 +164,7 @@
                   <div class="mt-6 pt-6 border-t border-emerald-200">
                     <div class="flex justify-between items-center text-lg font-semibold">
                       <span>Total Amount</span>
-                      <span>$225.00</span>
+                      <span>${{ totalAmount }}</span>
                     </div>
                   </div>
                 </div>
@@ -127,7 +174,7 @@
                   <button class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200">
                     Cancel
                   </button>
-                  <button class="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all duration-200">
+                  <button @click="createInvoice" class="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all duration-200">
                     Process Payment
                   </button>
                 </div>

@@ -1,3 +1,33 @@
+<script setup>
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+const messages = ref([]);
+
+async function fetchMessages() {
+  try {
+    const response = await fetch(`${apiBase}/Managment/inbox`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`
+      }
+    });
+    if (!response.ok) throw new Error('Failed to fetch messages');
+    const data = await response.json();
+    messages.value = data;
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+  }
+}
+
+function formatDate(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleString();
+}
+
+// Fetch messages on mount
+onMounted(fetchMessages);
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -26,7 +56,6 @@
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">3</span>
             </a>
             <a
               href="/staff/record_officer/inbox"
@@ -34,7 +63,6 @@
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">2</span>
             </a>
             <a
               href="/staff/record_officer/attendance"
@@ -56,88 +84,58 @@
           </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
-          <div class="space-y-6">
-            <!-- Inbox Header -->
-            <div class="flex justify-between items-center mb-6">
-              <h2 class="text-2xl font-semibold">Inbox</h2>
-              <div class="flex gap-4">
-                <button
-                  class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
-                >
-                  <span class="material-symbols-outlined">add</span>
-                  Compose
-                </button>
-                <button
-                  class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
-                >
-                  <span class="material-symbols-outlined">refresh</span>
-                  Refresh
-                </button>
-              </div>
-            </div>
+        <div class="space-y-6">
+          <!-- Inbox Header -->
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold">Inbox</h2>
+            <button
+              @click="fetchMessages"
+              class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
+            >
+              <span class="material-symbols-outlined">refresh</span>
+              Refresh
+            </button>
+          </div>
 
-            <!-- Messages -->
-            <div class="grid gap-4">
-              <!-- Message 1 -->
-              <div
-                class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border-l-4 border-emerald-500"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <span class="material-symbols-outlined text-2xl text-emerald-600">
-                        account_circle
-                      </span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">Dr. Sarah Johnson</h3>
-                      <p class="text-sm text-gray-500">Patient transfer request for Room 302</p>
-                      <p class="text-xs text-gray-400 mt-1">5 minutes ago</p>
-                    </div>
+          <!-- Messages -->
+          <div v-if="messages.length" class="grid gap-4">
+            <div
+              v-for="message in messages"
+              :key="message.id"
+              :class="[
+                'bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border-l-4',
+                message.is_read ? 'border-gray-300' : 'border-emerald-500'
+              ]"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-2xl text-emerald-600">
+                      account_circle
+                    </span>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <button class="text-gray-400 hover:text-emerald-600 transition-colors duration-200">
-                      <span class="material-symbols-outlined">reply</span>
-                    </button>
-                    <button class="text-gray-400 hover:text-gray-600">
-                      <span class="material-symbols-outlined">more_vert</span>
-                    </button>
+                  <div>
+                    <h3 class="text-lg font-semibold">{{ message.sender }}</h3>
+                    <p class="text-sm text-gray-500">{{ message.subject }}</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ formatDate(message.timestamp) }}</p>
                   </div>
                 </div>
-              </div>
-
-              <!-- Message 2 -->
-              <div
-                class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border-l-4 border-emerald-500"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <span class="material-symbols-outlined text-2xl text-emerald-600">
-                        support_agent
-                      </span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">IT Support</h3>
-                      <p class="text-sm text-gray-500">System update confirmation required</p>
-                      <p class="text-xs text-gray-400 mt-1">1 hour ago</p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <button class="text-gray-400 hover:text-emerald-600 transition-colors duration-200">
-                      <span class="material-symbols-outlined">reply</span>
-                    </button>
-                    <button class="text-gray-400 hover:text-gray-600">
-                      <span class="material-symbols-outlined">more_vert</span>
-                    </button>
-                  </div>
+                <div class="flex items-center gap-2">
+                  <button class="text-gray-400 hover:text-emerald-600 transition-colors duration-200">
+                    <span class="material-symbols-outlined">reply</span>
+                  </button>
+                  <button class="text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">more_vert</span>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-        </main>
+
+          <div v-else class="text-center text-gray-500">No messages found.</div>
+        </div>
+      </main>
       </div>
     </div>
   </div>

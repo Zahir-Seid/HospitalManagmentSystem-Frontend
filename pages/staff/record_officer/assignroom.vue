@@ -1,3 +1,47 @@
+<script setup>
+import { ref } from 'vue';
+import { useFetch } from '#app';
+
+const patientId = ref('');
+const fullName = ref('');
+const department = ref('');
+const roomType = ref('');
+const roomNumber = ref('');
+const duration = ref('');
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+const assignRoom = async () => {
+  if (!patientId.value || !roomNumber.value) {
+    alert('Patient ID and Room Number are required');
+    return;
+  }
+
+  try {
+    const { data, error } = await useFetch(`${apiBase}/patients/assign-room`, { // Fixed template string
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`, // Assuming token is stored here
+      },
+      body: {
+        patient_id: Number(patientId.value),
+        room_number: roomNumber.value,
+      },
+    });
+
+    if (error.value) {
+      alert(`Error: ${error.value.data?.error || 'Something went wrong'}`);
+    } else if (data.value) { // Ensure data exists before accessing
+      alert(data.value.message);
+    }
+  } catch (err) {
+    console.error(err);
+    alert('An unexpected error occurred');
+  }
+};
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -26,7 +70,6 @@
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">3</span>
             </a>
             <a
               href="/staff/record_officer/inbox"
@@ -34,7 +77,6 @@
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">2</span>
             </a>
             <a
               href="/staff/record_officer/attendance"
@@ -71,6 +113,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-2">Patient ID</label>
                     <input
+                      v-model="patientId"
                       type="text"
                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                       placeholder="Enter patient ID"
@@ -79,6 +122,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-2">Full Name</label>
                     <input
+                      v-model="fullName"
                       type="text"
                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                       placeholder="Patient's full name"
@@ -87,6 +131,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-2">Department</label>
                     <select
+                      v-model="department"
                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                     >
                       <option value="">Select department</option>
@@ -106,6 +151,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-2">Room Type</label>
                     <select
+                      v-model="roomType"
                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                     >
                       <option value="">Select room type</option>
@@ -118,6 +164,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-2">Room Number</label>
                     <select
+                      v-model="roomNumber"
                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                     >
                       <option value="">Select room number</option>
@@ -130,6 +177,7 @@
                   <div>
                     <label class="block text-sm font-medium mb-2">Duration (Days)</label>
                     <input
+                      v-model="duration"
                       type="number"
                       class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                       placeholder="Enter duration"
@@ -142,23 +190,12 @@
 
             <!-- Assign Room Button -->
             <button
-              type="submit"
+              @click="assignRoom"
               class="w-full bg-emerald-500 text-white py-3 rounded-lg hover:bg-emerald-600 transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
             >
               <span class="material-symbols-outlined">check_circle</span>
               Assign Room
             </button>
-
-            <!-- Room Availability Overview -->
-            <div class="bg-white rounded-xl shadow-lg p-6">
-              <h3 class="text-lg font-semibold mb-4">Room Availability Overview</h3>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <RoomCard label="Private Rooms" available="12/15" icon="hotel" />
-                <RoomCard label="Semi-Private" available="8/10" icon="bed" />
-                <RoomCard label="General Ward" available="25/30" icon="meeting_room" />
-                <RoomCard label="ICU" available="5/8" icon="emergency" />
-              </div>
-            </div>
           </div>
         </main>
       </div>

@@ -1,3 +1,40 @@
+<script setup>
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+const checkInTime = ref('')
+const checkOutTime = ref('')
+const todaySummary = ref(null)
+
+const markAttendance = async () => {
+  try {
+    if (!checkInTime.value && !checkOutTime.value) {
+      alert('Please enter at least one time (check-in or check-out)')
+      return
+    }
+
+    const action = checkInTime.value && !checkOutTime.value ? 'check_in' : 'check_out'
+    const time = checkInTime.value || checkOutTime.value
+
+    const response = await fetch(`${apiBase}/management/attendance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+      },
+      body: JSON.stringify({ action, time: `${time}:00` }),
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Failed to mark attendance')
+
+    todaySummary.value = data
+    alert('Attendance marked successfully!')
+  } catch (error) {
+    console.error(error)
+    alert(error.message)
+  }
+}
+</script>
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -26,7 +63,6 @@
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">3</span>
             </a>
             <a
               href="/staff/record_officer/inbox"
@@ -34,7 +70,6 @@
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">2</span>
             </a>
             <a
               href="/staff/record_officer/attendance"
@@ -56,85 +91,78 @@
           </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
-          <div class="space-y-6">
-            <div class="flex justify-between items-center mb-6">
-              <h2 class="text-2xl font-semibold">Attendance</h2>
-              <div class="flex gap-4">
-                <button
-                  class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
-                >
-                  <span class="material-symbols-outlined">history</span>
-                  View History
-                </button>
+        <div class="space-y-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold">Attendance</h2>
+          </div>
+
+          <!-- Attendance Form -->
+          <div class="bg-white rounded-xl shadow-lg p-8">
+            <form @submit.prevent="markAttendance">
+              <div class="grid grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Check In Time</label>
+                  <input
+                    v-model="checkInTime"
+                    type="time"
+                    class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Check Out Time</label>
+                  <input
+                    v-model="checkOutTime"
+                    type="time"
+                    class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+                  />
+                </div>
               </div>
-            </div>
+              <button
+                type="submit"
+                class="w-full bg-emerald-500 text-white py-3 rounded-lg hover:bg-emerald-600 transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <span class="material-symbols-outlined">check_circle</span>
+                Mark Attendance
+              </button>
+            </form>
+          </div>
 
-            <!-- Attendance Form -->
-            <div class="bg-white rounded-xl shadow-lg p-8">
-              <form class="space-y-6">
-                <div class="grid grid-cols-2 gap-6">
+          <!-- Attendance Summary -->
+          <div v-if="todaySummary" class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold mb-4">Today's Summary</h3>
+            <div class="grid grid-cols-3 gap-4">
+              <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-emerald-600">login</span>
                   <div>
-                    <label class="block text-sm font-medium mb-2">Start Time</label>
-                    <input
-                      type="time"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                    />
+                    <p class="text-sm text-gray-500">Check In</p>
+                    <p class="font-semibold">{{ todaySummary.check_in || '--:-- --' }}</p>
                   </div>
+                </div>
+              </div>
+              <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-emerald-600">logout</span>
                   <div>
-                    <label class="block text-sm font-medium mb-2">Finish Time</label>
-                    <input
-                      type="time"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                    />
+                    <p class="text-sm text-gray-500">Check Out</p>
+                    <p class="font-semibold">{{ todaySummary.check_out || '--:-- --' }}</p>
                   </div>
                 </div>
-                <button
-                  type="submit"
-                  class="w-full bg-emerald-500 text-white py-3 rounded-lg hover:bg-emerald-600 transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
-                >
-                  <span class="material-symbols-outlined">check_circle</span>
-                  Mark Attendance
-                </button>
-              </form>
-            </div>
-
-            <!-- Attendance Summary -->
-            <div class="bg-white rounded-xl shadow-lg p-6">
-              <h3 class="text-lg font-semibold mb-4">Today's Summary</h3>
-              <div class="grid grid-cols-3 gap-4">
-                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-emerald-600">login</span>
-                    <div>
-                      <p class="text-sm text-gray-500">Check In</p>
-                      <p class="font-semibold">08:30 AM</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-emerald-600">logout</span>
-                    <div>
-                      <p class="text-sm text-gray-500">Check Out</p>
-                      <p class="font-semibold">--:-- --</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-emerald-600">timer</span>
-                    <div>
-                      <p class="text-sm text-gray-500">Total Hours</p>
-                      <p class="font-semibold">-- hrs -- mins</p>
-                    </div>
+              </div>
+              <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-emerald-600">timer</span>
+                  <div>
+                    <p class="text-sm text-gray-500">Total Hours</p>
+                    <p class="font-semibold">{{ todaySummary.total_hours || '-- hrs -- mins' }}</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </main>
+        </div>
+      </main>
       </div>
     </div>
   </div>

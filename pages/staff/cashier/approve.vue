@@ -1,3 +1,40 @@
+<script setup>
+import { ref } from 'vue';
+import { useFetch } from '#app';
+
+const invoiceId = ref('');
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+const approvePayment = async () => {
+  if (!invoiceId.value) {
+    alert('Invoice ID is required');
+    return;
+  }
+
+  try {
+    const { data, error } = await useFetch(`${apiBase}/billings/approve/${invoiceId.value}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`, // Assuming token is stored here
+      },
+      body: {
+        status: 'approved',
+      },
+    });
+
+    if (error.value) {
+      alert(`Error: ${error.value.data?.error || 'Something went wrong'}`);
+    } else if (data.value) {
+      alert(`Payment approved: ${data.value.description} - Amount: $${data.value.amount}`);
+    }
+  } catch (err) {
+    console.error(err);
+    alert('An unexpected error occurred');
+  }
+};
+</script>
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -7,40 +44,39 @@
           <nav class="space-y-4">
             <div class="text-white text-xl font-bold mb-8">Cashier Dashboard</div>
             <a
-              href="/approve-payments"
-              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/cashier/approve"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">payments</span>
               Approve Payments
             </a>
             <a
-              href="/order-bill"
+              href="/staff/cashier/orderbill"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">receipt_long</span>
               Order Bill
             </a>
             <a
-              href="/payment-history"
+              href="/staff/cashier/paymenthistory"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">history</span>
               Payment History
             </a>
             <a
-              href="/inbox"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/cashier/inbox"
+              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
             </a>
             <a
-              href="/notifications"
+              href="/staff/cashier/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">5</span>
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -50,85 +86,26 @@
 
         <!-- Main Content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
-          <div class="max-w-4xl mx-auto">
-            <div class="bg-white rounded-xl shadow-lg p-8">
-              <div class="flex items-center justify-between mb-8">
-                <h2 class="text-2xl font-semibold">Cashier Profile</h2>
-                <button class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-all duration-200">
-                  Edit Profile
-                </button>
-              </div>
+          <h1 class="text-3xl font-bold text-emerald-900 mb-8">Approve Payment</h1>
 
-              <div class="flex gap-8">
-                <!-- Profile Photo -->
-                <div class="w-1/3">
-                  <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-emerald-100 mb-4">
-                    <span class="material-symbols-outlined absolute inset-0 flex items-center justify-center text-6xl text-emerald-300">
-                      account_circle
-                    </span>
-                  </div>
-                  <button class="w-full bg-emerald-50 text-emerald-600 py-2 rounded-lg hover:bg-emerald-100 transition-all duration-200">
-                    Change Photo
-                  </button>
-                </div>
+          <div class="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
+            <label class="block text-emerald-900 font-medium mb-2" for="invoice_id">
+              Invoice ID
+            </label>
+            <input
+              v-model="invoiceId"
+              type="number"
+              id="invoice_id"
+              class="w-full p-3 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              placeholder="Enter Invoice ID"
+            />
 
-                <!-- Profile Info -->
-                <div class="w-2/3 space-y-6">
-                  <div class="grid grid-cols-2 gap-6">
-                    <div>
-                      <label class="block text-sm font-medium mb-2">First Name</label>
-                      <input
-                        type="text"
-                        class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                        placeholder="First Name"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium mb-2">Middle Name</label>
-                      <input
-                        type="text"
-                        class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                        placeholder="Middle Name"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium mb-2">Last Name</label>
-                      <input
-                        type="text"
-                        class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                        placeholder="Last Name"
-                      />
-                    </div>
-                    <div>
-                      <label class="block text-sm font-medium mb-2">SSN</label>
-                      <input
-                        type="text"
-                        class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                        placeholder="XXX-XX-XXXX"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium mb-2">Email Address</label>
-                    <input
-                      type="email"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      placeholder="email@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label class="block text-sm font-medium mb-2">Address</label>
-                    <textarea
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      rows="3"
-                      placeholder="Enter your address"
-                    ></textarea>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <button
+              @click="approvePayment"
+              class="w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg mt-6 hover:bg-emerald-700 transition-all duration-200"
+            >
+              Approve Payment
+            </button>
           </div>
         </main>
       </div>
@@ -474,18 +451,15 @@
     #webcrumbs .relative {
       position: relative;
     }
-    #webcrumbs .inset-0 {
-      inset: 0;
+    #webcrumbs .left-3 {
+      left: 9px;
+    }
+    #webcrumbs .top-2\.5 {
+      top: 7.5px;
     }
     #webcrumbs .mx-auto {
       margin-left: auto;
       margin-right: auto;
-    }
-    #webcrumbs .mb-2 {
-      margin-bottom: 6px;
-    }
-    #webcrumbs .mb-4 {
-      margin-bottom: 12px;
     }
     #webcrumbs .mb-8 {
       margin-bottom: 24px;
@@ -493,23 +467,23 @@
     #webcrumbs .ml-2 {
       margin-left: 6px;
     }
+    #webcrumbs .mr-1 {
+      margin-right: 3px;
+    }
     #webcrumbs .mr-2 {
       margin-right: 6px;
+    }
+    #webcrumbs .mt-1 {
+      margin-top: 3px;
+    }
+    #webcrumbs .mt-2 {
+      margin-top: 6px;
     }
     #webcrumbs .mt-auto {
       margin-top: auto;
     }
-    #webcrumbs .block {
-      display: block;
-    }
     #webcrumbs .flex {
       display: flex;
-    }
-    #webcrumbs .grid {
-      display: grid;
-    }
-    #webcrumbs .aspect-square {
-      aspect-ratio: 1/1;
     }
     #webcrumbs .h-\[1080px\] {
       height: 1080px;
@@ -517,17 +491,8 @@
     #webcrumbs .h-full {
       height: 100%;
     }
-    #webcrumbs .w-1\/3 {
-      width: 33.333333%;
-    }
-    #webcrumbs .w-2\/3 {
-      width: 66.666667%;
-    }
     #webcrumbs .w-64 {
       width: 192px;
-    }
-    #webcrumbs .w-full {
-      width: 100%;
     }
     #webcrumbs .max-w-4xl {
       max-width: 56rem;
@@ -535,20 +500,17 @@
     #webcrumbs .flex-1 {
       flex: 1 1 0%;
     }
-    #webcrumbs .grid-cols-2 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
     #webcrumbs .flex-row {
       flex-direction: row;
     }
     #webcrumbs .flex-col {
       flex-direction: column;
     }
+    #webcrumbs .items-start {
+      align-items: flex-start;
+    }
     #webcrumbs .items-center {
       align-items: center;
-    }
-    #webcrumbs .justify-center {
-      justify-content: center;
     }
     #webcrumbs .justify-between {
       justify-content: space-between;
@@ -556,24 +518,10 @@
     #webcrumbs .gap-4 {
       gap: 12px;
     }
-    #webcrumbs .gap-6 {
-      gap: 18px;
-    }
-    #webcrumbs .gap-8 {
-      gap: 24px;
-    }
     #webcrumbs :is(.space-y-4 > :not([hidden]) ~ :not([hidden])) {
       --tw-space-y-reverse: 0;
       margin-bottom: calc(12px * var(--tw-space-y-reverse));
       margin-top: calc(12px * (1 - var(--tw-space-y-reverse)));
-    }
-    #webcrumbs :is(.space-y-6 > :not([hidden]) ~ :not([hidden])) {
-      --tw-space-y-reverse: 0;
-      margin-bottom: calc(18px * var(--tw-space-y-reverse));
-      margin-top: calc(18px * (1 - var(--tw-space-y-reverse)));
-    }
-    #webcrumbs .overflow-hidden {
-      overflow: hidden;
     }
     #webcrumbs .overflow-y-auto {
       overflow-y: auto;
@@ -601,17 +549,17 @@
       --tw-border-opacity: 1;
       border-color: rgb(209 213 219 / var(--tw-border-opacity));
     }
-    #webcrumbs .bg-emerald-100 {
+    #webcrumbs .bg-blue-100 {
       --tw-bg-opacity: 1;
-      background-color: rgb(209 250 229 / var(--tw-bg-opacity));
+      background-color: rgb(219 234 254 / var(--tw-bg-opacity));
     }
     #webcrumbs .bg-emerald-50 {
       --tw-bg-opacity: 1;
       background-color: rgb(236 253 245 / var(--tw-bg-opacity));
     }
-    #webcrumbs .bg-emerald-500 {
+    #webcrumbs .bg-emerald-600 {
       --tw-bg-opacity: 1;
-      background-color: rgb(16 185 129 / var(--tw-bg-opacity));
+      background-color: rgb(5 150 105 / var(--tw-bg-opacity));
     }
     #webcrumbs .bg-emerald-800 {
       --tw-bg-opacity: 1;
@@ -620,6 +568,18 @@
     #webcrumbs .bg-emerald-900 {
       --tw-bg-opacity: 1;
       background-color: rgb(6 78 59 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-gray-100 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(243 244 246 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-gray-400 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(156 163 175 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-gray-50 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(249 250 251 / var(--tw-bg-opacity));
     }
     #webcrumbs .bg-red-500 {
       --tw-bg-opacity: 1;
@@ -632,6 +592,9 @@
     #webcrumbs .p-2 {
       padding: 6px;
     }
+    #webcrumbs .p-3 {
+      padding: 9px;
+    }
     #webcrumbs .p-6 {
       padding: 18px;
     }
@@ -642,9 +605,9 @@
       padding-left: 6px;
       padding-right: 6px;
     }
-    #webcrumbs .px-4 {
-      padding-left: 12px;
-      padding-right: 12px;
+    #webcrumbs .px-3 {
+      padding-left: 9px;
+      padding-right: 9px;
     }
     #webcrumbs .py-1 {
       padding-bottom: 3px;
@@ -653,6 +616,12 @@
     #webcrumbs .py-2 {
       padding-bottom: 6px;
       padding-top: 6px;
+    }
+    #webcrumbs .pl-10 {
+      padding-left: 30px;
+    }
+    #webcrumbs .pr-4 {
+      padding-right: 12px;
     }
     #webcrumbs .pt-6 {
       padding-top: 18px;
@@ -664,9 +633,9 @@
       font-size: 21px;
       line-height: 27.3px;
     }
-    #webcrumbs .text-6xl {
-      font-size: 52.5px;
-      line-height: 57.75000000000001px;
+    #webcrumbs .text-lg {
+      font-size: 15.75px;
+      line-height: 23.625px;
     }
     #webcrumbs .text-sm {
       font-size: 12.25px;
@@ -689,17 +658,25 @@
     #webcrumbs .font-semibold {
       font-weight: 600;
     }
+    #webcrumbs .text-blue-600 {
+      --tw-text-opacity: 1;
+      color: rgb(37 99 235 / var(--tw-text-opacity));
+    }
     #webcrumbs .text-emerald-200 {
       --tw-text-opacity: 1;
       color: rgb(167 243 208 / var(--tw-text-opacity));
     }
-    #webcrumbs .text-emerald-300 {
+    #webcrumbs .text-gray-400 {
       --tw-text-opacity: 1;
-      color: rgb(110 231 183 / var(--tw-text-opacity));
+      color: rgb(156 163 175 / var(--tw-text-opacity));
     }
-    #webcrumbs .text-emerald-600 {
+    #webcrumbs .text-gray-500 {
       --tw-text-opacity: 1;
-      color: rgb(5 150 105 / var(--tw-text-opacity));
+      color: rgb(107 114 128 / var(--tw-text-opacity));
+    }
+    #webcrumbs .text-gray-600 {
+      --tw-text-opacity: 1;
+      color: rgb(75 85 99 / var(--tw-text-opacity));
     }
     #webcrumbs .text-white {
       --tw-text-opacity: 1;
@@ -725,17 +702,17 @@
       font-family: Inter !important;
       font-size: 14px !important;
     }
-    #webcrumbs .hover\:bg-emerald-100:hover {
-      --tw-bg-opacity: 1;
-      background-color: rgb(209 250 229 / var(--tw-bg-opacity));
-    }
-    #webcrumbs .hover\:bg-emerald-600:hover {
-      --tw-bg-opacity: 1;
-      background-color: rgb(5 150 105 / var(--tw-bg-opacity));
-    }
     #webcrumbs .hover\:bg-emerald-800:hover {
       --tw-bg-opacity: 1;
       background-color: rgb(6 95 70 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .hover\:shadow-md:hover {
+      --tw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color),
+        0 2px 4px -2px var(--tw-shadow-color);
+      box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
     }
     #webcrumbs .focus\:border-emerald-500:focus {
       --tw-border-opacity: 1;
@@ -753,5 +730,6 @@
       --tw-ring-opacity: 1;
       --tw-ring-color: rgb(16 185 129 / var(--tw-ring-opacity));
     }
+    
     
   </style>

@@ -1,3 +1,35 @@
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useFetch } from '#app'
+
+const invoices = ref([])
+const searchQuery = ref('')
+
+// Fetch invoices from backend
+const fetchInvoices = async () => {
+  try {
+    const { data } = await useFetch('/api/billings/list')
+    invoices.value = data.value || []
+  } catch (error) {
+    console.error('Failed to fetch invoices:', error)
+  }
+}
+
+// Format date (placeholder since date isn’t in backend response yet)
+const formatDate = (date) => {
+  return date ? new Date(date).toLocaleDateString() : 'N/A'
+}
+
+// Filter invoices based on search
+const filteredInvoices = computed(() => {
+  return invoices.value.filter((invoice) =>
+    invoice.description.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
+
+onMounted(fetchInvoices)
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -6,46 +38,40 @@
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
             <div class="text-white text-xl font-bold mb-8">Cashier Dashboard</div>
-
             <a
-              href="/approve-payments"
+              href="/staff/cashier/approve"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">payments</span>
               Approve Payments
             </a>
-
             <a
-              href="/order-bill"
+              href="/staff/cashier/orderbill"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">receipt_long</span>
               Order Bill
             </a>
-
             <a
-              href="/payment-history"
-              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/cashier/paymenthistory"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">history</span>
               Payment History
             </a>
-
             <a
-              href="/inbox"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/cashier/inbox"
+              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
             </a>
-
             <a
-              href="/notifications"
+              href="/staff/cashier/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">5</span>
             </a>
           </nav>
 
@@ -65,8 +91,9 @@
                 <div class="relative">
                   <span class="material-symbols-outlined absolute left-3 top-2.5 text-gray-400">search</span>
                   <input
+                    v-model="searchQuery"
                     type="text"
-                    placeholder="Search patient name..."
+                    placeholder="Search description..."
                     class="pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 w-64"
                   />
                 </div>
@@ -74,57 +101,33 @@
 
               <!-- Payment History List -->
               <div class="space-y-4">
-                <!-- Payment Record: John Smith -->
-                <div class="bg-emerald-50 rounded-lg p-4 hover:shadow-md transition-all duration-200">
+                <div
+                  v-for="invoice in filteredInvoices"
+                  :key="invoice.id"
+                  class="bg-emerald-50 rounded-lg p-4 hover:shadow-md transition-all duration-200"
+                >
                   <div class="flex justify-between items-center mb-2">
                     <div>
-                      <h3 class="font-semibold">John Smith</h3>
-                      <p class="text-sm text-gray-500">Patient ID: #12345</p>
+                      <h3 class="font-semibold">{{ invoice.description }}</h3>
+                      <p class="text-sm text-gray-500">Invoice ID: #{{ invoice.id }}</p>
                     </div>
-                    <div class="text-emerald-600 font-semibold">$225.00</div>
+                    <div class="text-emerald-600 font-semibold">${{ invoice.amount.toFixed(2) }}</div>
                   </div>
                   <div class="flex justify-between items-center text-sm">
                     <div class="flex items-center">
                       <span class="material-symbols-outlined mr-1 text-gray-400">calendar_today</span>
-                      <span class="text-gray-500">May 15, 2025</span>
+                      <span class="text-gray-500">{{ formatDate(invoice.date) }}</span>
                     </div>
-                    <span class="px-3 py-1 bg-emerald-100 text-emerald-600 rounded-full text-xs font-medium">Paid</span>
-                  </div>
-                </div>
-
-                <!-- Payment Record: Sarah Johnson -->
-                <div class="bg-emerald-50 rounded-lg p-4 hover:shadow-md transition-all duration-200">
-                  <div class="flex justify-between items-center mb-2">
-                    <div>
-                      <h3 class="font-semibold">Sarah Johnson</h3>
-                      <p class="text-sm text-gray-500">Patient ID: #12346</p>
-                    </div>
-                    <div class="text-emerald-600 font-semibold">$350.00</div>
-                  </div>
-                  <div class="flex justify-between items-center text-sm">
-                    <div class="flex items-center">
-                      <span class="material-symbols-outlined mr-1 text-gray-400">calendar_today</span>
-                      <span class="text-gray-500">May 14, 2025</span>
-                    </div>
-                    <span class="px-3 py-1 bg-emerald-100 text-emerald-600 rounded-full text-xs font-medium">Paid</span>
-                  </div>
-                </div>
-
-                <!-- Payment Record: Michael Brown -->
-                <div class="bg-emerald-50 rounded-lg p-4 hover:shadow-md transition-all duration-200">
-                  <div class="flex justify-between items-center mb-2">
-                    <div>
-                      <h3 class="font-semibold">Michael Brown</h3>
-                      <p class="text-sm text-gray-500">Patient ID: #12347</p>
-                    </div>
-                    <div class="text-emerald-600 font-semibold">$175.00</div>
-                  </div>
-                  <div class="flex justify-between items-center text-sm">
-                    <div class="flex items-center">
-                      <span class="material-symbols-outlined mr-1 text-gray-400">calendar_today</span>
-                      <span class="text-gray-500">May 13, 2025</span>
-                    </div>
-                    <span class="px-3 py-1 bg-emerald-100 text-emerald-600 rounded-full text-xs font-medium">Paid</span>
+                    <span
+                      :class="[
+                        'px-3 py-1 rounded-full text-xs font-medium',
+                        invoice.status === 'Paid'
+                          ? 'bg-emerald-100 text-emerald-600'
+                          : 'bg-red-100 text-red-600'
+                      ]"
+                    >
+                      {{ invoice.status }}
+                    </span>
                   </div>
                 </div>
               </div>

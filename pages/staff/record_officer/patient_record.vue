@@ -53,7 +53,6 @@ onMounted(() => {
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">3</span>
             </a>
             <a
               href="/staff/record_officer/inbox"
@@ -61,7 +60,6 @@ onMounted(() => {
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">2</span>
             </a>
             <a
               href="/staff/record_officer/attendance"

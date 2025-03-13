@@ -1,3 +1,33 @@
+<script setup>
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+const messages = ref([]);
+
+async function fetchMessages() {
+  try {
+    const response = await fetch(`${apiBase}/Managment/inbox`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`
+      }
+    });
+    if (!response.ok) throw new Error('Failed to fetch messages');
+    const data = await response.json();
+    messages.value = data;
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+  }
+}
+
+function formatDate(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleString();
+}
+
+// Fetch messages on mount
+onMounted(fetchMessages);
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -7,40 +37,39 @@
           <nav class="space-y-4">
             <div class="text-white text-xl font-bold mb-8">Cashier Dashboard</div>
             <a
-              href="/approve-payments"
+              href="/staff/cashier/approve"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">payments</span>
               Approve Payments
             </a>
             <a
-              href="/order-bill"
+              href="/staff/cashier/orderbill"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">receipt_long</span>
               Order Bill
             </a>
             <a
-              href="/payment-history"
+              href="/staff/cashier/paymenthistory"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">history</span>
               Payment History
             </a>
             <a
-              href="/inbox"
+              href="/staff/cashier/inbox"
               class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
             </a>
             <a
-              href="/notifications"
+              href="/staff/cashier/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
-              <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">5</span>
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -50,69 +79,57 @@
 
         <!-- Main Content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
-          <div class="max-w-4xl mx-auto">
-            <div class="bg-white rounded-xl shadow-lg p-8">
-              <div class="flex items-center justify-between mb-8">
-                <h2 class="text-2xl font-semibold">Inbox Messages</h2>
-                <div class="relative">
-                  <span class="material-symbols-outlined absolute left-3 top-2.5 text-gray-400">search</span>
-                  <input
-                    type="text"
-                    placeholder="Search messages..."
-                    class="pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200 w-64"
-                  />
-                </div>
-              </div>
+        <div class="space-y-6">
+          <!-- Inbox Header -->
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold">Inbox</h2>
+            <button
+              @click="fetchMessages"
+              class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
+            >
+              <span class="material-symbols-outlined">refresh</span>
+              Refresh
+            </button>
+          </div>
 
-              <!-- Messages -->
-              <div class="space-y-4">
-                <!-- New Message -->
-                <div class="bg-emerald-50 rounded-lg p-6 hover:shadow-md transition-all duration-200">
-                  <div class="flex justify-between items-start">
-                    <div class="flex items-start gap-4">
-                      <div class="bg-emerald-600 rounded-full p-3">
-                        <span class="material-symbols-outlined text-white">account_circle</span>
-                      </div>
-                      <div>
-                        <h3 class="font-semibold text-lg">Dr. James Wilson</h3>
-                        <p class="text-sm text-gray-500 mt-1">
-                          Payment confirmation needed for Patient #12345
-                        </p>
-                        <div class="flex items-center mt-2">
-                          <span class="material-symbols-outlined mr-1 text-gray-400">schedule</span>
-                          <span class="text-sm text-gray-500">2 hours ago</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span class="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-xs font-medium">New</span>
+          <!-- Messages -->
+          <div v-if="messages.length" class="grid gap-4">
+            <div
+              v-for="message in messages"
+              :key="message.id"
+              :class="[
+                'bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border-l-4',
+                message.is_read ? 'border-gray-300' : 'border-emerald-500'
+              ]"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-2xl text-emerald-600">
+                      account_circle
+                    </span>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-semibold">{{ message.sender }}</h3>
+                    <p class="text-sm text-gray-500">{{ message.subject }}</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ formatDate(message.timestamp) }}</p>
                   </div>
                 </div>
-
-                <!-- Read Message -->
-                <div class="bg-gray-50 rounded-lg p-6 hover:shadow-md transition-all duration-200">
-                  <div class="flex justify-between items-start">
-                    <div class="flex items-start gap-4">
-                      <div class="bg-gray-400 rounded-full p-3">
-                        <span class="material-symbols-outlined text-white">support_agent</span>
-                      </div>
-                      <div>
-                        <h3 class="font-semibold text-lg">System Notification</h3>
-                        <p class="text-sm text-gray-500 mt-1">
-                          Monthly payment report is ready for review
-                        </p>
-                        <div class="flex items-center mt-2">
-                          <span class="material-symbols-outlined mr-1 text-gray-400">schedule</span>
-                          <span class="text-sm text-gray-500">Yesterday</span>
-                        </div>
-                      </div>
-                    </div>
-                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Read</span>
-                  </div>
+                <div class="flex items-center gap-2">
+                  <button class="text-gray-400 hover:text-emerald-600 transition-colors duration-200">
+                    <span class="material-symbols-outlined">reply</span>
+                  </button>
+                  <button class="text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">more_vert</span>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-        </main>
+
+          <div v-else class="text-center text-gray-500">No messages found.</div>
+        </div>
+      </main>
       </div>
     </div>
   </div>
@@ -735,5 +752,269 @@
       --tw-ring-opacity: 1;
       --tw-ring-color: rgb(16 185 129 / var(--tw-ring-opacity));
     }
+
+    #webcrumbs .mb-6 {
+      margin-bottom: 18px;
+    }
+    #webcrumbs .mb-8 {
+      margin-bottom: 24px;
+    }
+    #webcrumbs .ml-2 {
+      margin-left: 6px;
+    }
+    #webcrumbs .mr-2 {
+      margin-right: 6px;
+    }
+    #webcrumbs .mt-1 {
+      margin-top: 3px;
+    }
+    #webcrumbs .mt-auto {
+      margin-top: auto;
+    }
+    #webcrumbs .flex {
+      display: flex;
+    }
+    #webcrumbs .grid {
+      display: grid;
+    }
+    #webcrumbs .h-12 {
+      height: 36px;
+    }
+    #webcrumbs .h-\[1080px\] {
+      height: 1080px;
+    }
+    #webcrumbs .h-full {
+      height: 100%;
+    }
+    #webcrumbs .w-12 {
+      width: 36px;
+    }
+    #webcrumbs .w-64 {
+      width: 192px;
+    }
+    #webcrumbs .flex-1 {
+      flex: 1 1 0%;
+    }
+    #webcrumbs .flex-row {
+      flex-direction: row;
+    }
+    #webcrumbs .flex-col {
+      flex-direction: column;
+    }
+    #webcrumbs .items-center {
+      align-items: center;
+    }
+    #webcrumbs .justify-center {
+      justify-content: center;
+    }
+    #webcrumbs .justify-between {
+      justify-content: space-between;
+    }
+    #webcrumbs .gap-2 {
+      gap: 6px;
+    }
+    #webcrumbs .gap-4 {
+      gap: 12px;
+    }
+    #webcrumbs :is(.space-y-4 > :not([hidden]) ~ :not([hidden])) {
+      --tw-space-y-reverse: 0;
+      margin-bottom: calc(12px * var(--tw-space-y-reverse));
+      margin-top: calc(12px * (1 - var(--tw-space-y-reverse)));
+    }
+    #webcrumbs :is(.space-y-6 > :not([hidden]) ~ :not([hidden])) {
+      --tw-space-y-reverse: 0;
+      margin-bottom: calc(18px * var(--tw-space-y-reverse));
+      margin-top: calc(18px * (1 - var(--tw-space-y-reverse)));
+    }
+    #webcrumbs .overflow-y-auto {
+      overflow-y: auto;
+    }
+    #webcrumbs .rounded-full {
+      border-radius: 9999px;
+    }
+    #webcrumbs .rounded-lg {
+      border-radius: 8px;
+    }
+    #webcrumbs .rounded-xl {
+      border-radius: 12px;
+    }
+    #webcrumbs .border-l-4 {
+      border-left-width: 4px;
+    }
+    #webcrumbs .border-t {
+      border-top-width: 1px;
+    }
+    #webcrumbs .border-emerald-500 {
+      --tw-border-opacity: 1;
+      border-color: rgb(16 185 129 / var(--tw-border-opacity));
+    }
+    #webcrumbs .border-emerald-800 {
+      --tw-border-opacity: 1;
+      border-color: rgb(6 95 70 / var(--tw-border-opacity));
+    }
+    #webcrumbs .bg-emerald-100 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(209 250 229 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-emerald-50 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(236 253 245 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-emerald-500 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(16 185 129 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-emerald-800 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(6 95 70 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-emerald-900 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(6 78 59 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-red-500 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(239 68 68 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .bg-white {
+      --tw-bg-opacity: 1;
+      background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .p-2 {
+      padding: 6px;
+    }
+    #webcrumbs .p-6 {
+      padding: 18px;
+    }
+    #webcrumbs .p-8 {
+      padding: 24px;
+    }
+    #webcrumbs .px-2 {
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    #webcrumbs .px-4 {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    #webcrumbs .py-1 {
+      padding-bottom: 3px;
+      padding-top: 3px;
+    }
+    #webcrumbs .py-2 {
+      padding-bottom: 6px;
+      padding-top: 6px;
+    }
+    #webcrumbs .pt-6 {
+      padding-top: 18px;
+    }
+    #webcrumbs .text-center {
+      text-align: center;
+    }
+    #webcrumbs .text-2xl {
+      font-size: 21px;
+      line-height: 27.3px;
+    }
+    #webcrumbs .text-lg {
+      font-size: 15.75px;
+      line-height: 23.625px;
+    }
+    #webcrumbs .text-sm {
+      font-size: 12.25px;
+      line-height: 18.375px;
+    }
+    #webcrumbs .text-xl {
+      font-size: 17.5px;
+      line-height: 24.5px;
+    }
+    #webcrumbs .text-xs {
+      font-size: 10.5px;
+      line-height: 16.8px;
+    }
+    #webcrumbs .font-bold {
+      font-weight: 700;
+    }
+    #webcrumbs .font-semibold {
+      font-weight: 600;
+    }
+    #webcrumbs .text-emerald-200 {
+      --tw-text-opacity: 1;
+      color: rgb(167 243 208 / var(--tw-text-opacity));
+    }
+    #webcrumbs .text-emerald-600 {
+      --tw-text-opacity: 1;
+      color: rgb(5 150 105 / var(--tw-text-opacity));
+    }
+    #webcrumbs .text-gray-400 {
+      --tw-text-opacity: 1;
+      color: rgb(156 163 175 / var(--tw-text-opacity));
+    }
+    #webcrumbs .text-gray-500 {
+      --tw-text-opacity: 1;
+      color: rgb(107 114 128 / var(--tw-text-opacity));
+    }
+    #webcrumbs .text-white {
+      --tw-text-opacity: 1;
+      color: rgb(255 255 255 / var(--tw-text-opacity));
+    }
+    #webcrumbs .shadow-lg {
+      --tw-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color),
+        0 4px 6px -4px var(--tw-shadow-color);
+      box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+    }
+    #webcrumbs .transition-all {
+      transition-duration: 0.15s;
+      transition-property: all;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #webcrumbs .transition-colors {
+      transition-duration: 0.15s;
+      transition-property: color, background-color, border-color,
+        text-decoration-color, fill, stroke;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #webcrumbs .transition-shadow {
+      transition-duration: 0.15s;
+      transition-property: box-shadow;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #webcrumbs .duration-200 {
+      transition-duration: 0.2s;
+    }
+    #webcrumbs .duration-300 {
+      transition-duration: 0.3s;
+    }
+    #webcrumbs {
+      font-family: Inter !important;
+      font-size: 14px !important;
+    }
+    #webcrumbs .hover\:bg-emerald-600:hover {
+      --tw-bg-opacity: 1;
+      background-color: rgb(5 150 105 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .hover\:bg-emerald-800:hover {
+      --tw-bg-opacity: 1;
+      background-color: rgb(6 95 70 / var(--tw-bg-opacity));
+    }
+    #webcrumbs .hover\:text-emerald-600:hover {
+      --tw-text-opacity: 1;
+      color: rgb(5 150 105 / var(--tw-text-opacity));
+    }
+    #webcrumbs .hover\:text-gray-600:hover {
+      --tw-text-opacity: 1;
+      color: rgb(75 85 99 / var(--tw-text-opacity));
+    }
+    #webcrumbs .hover\:shadow-xl:hover {
+      --tw-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color),
+        0 8px 10px -6px var(--tw-shadow-color);
+      box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
+        var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+    }
+    
     
   </style>
