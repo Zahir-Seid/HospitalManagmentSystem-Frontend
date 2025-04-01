@@ -1,3 +1,57 @@
+<script setup>
+import { ref } from 'vue';
+import { useRouter, useRuntimeConfig } from '#imports';
+
+const router = useRouter();
+const config = useRuntimeConfig(); // Fetch runtime config
+const apiBase = config.public.API_BASE; // Correct way to access
+
+// Form data and error state
+const username = ref('');
+const password = ref('');
+const errorMessage = ref('');
+
+// Function to handle login
+const login = async () => {
+  try {
+    // Send login request
+    const response = await $fetch(`${apiBase}/login/`, {
+      method: 'POST',
+      body: {
+        username: username.value,
+        password: password.value,
+      },
+    });
+
+    // Store tokens in localStorage
+    localStorage.setItem('access_token', response.access);
+    localStorage.setItem('refresh_token', response.refresh);
+
+    // Navigate based on user role
+    const role = response.role; // Assuming the API returns a `role` field with the user's role
+
+    // Conditional navigation based on the role
+    if (role === 'doctor') {
+      router.push('/staff/doctor/dashboard');
+    } else if (role === 'lab_technician') {
+      router.push('/staff/lab_technician/dashboard');
+    } else if (role === 'pharmacist') {
+      router.push('/staff/pharmacist/dashboard');
+    } else if (role === 'cashier') {
+      router.push('/staff/cashier/inbox');
+    } else if (role === 'record_officer') {
+      router.push('/staff/record_officer/inbox');
+    } else {
+      // If role is not recognized, you can show an error or navigate to a default page
+      errorMessage.value = 'Unknown role. Please contact the administrator.';
+    }
+  } catch (error) {
+    errorMessage.value = error.data?.error || 'Login failed.';
+  }
+};
+</script>
+
+
 <template>
     <div id="webcrumbs">
         <div class="w-full min-h-screen bg-gradient-to-br from-emerald-50 to-white"> 
@@ -35,39 +89,6 @@
             </div>
         </div>
   </template>
-  
-  <script setup>
-import { ref } from 'vue';
-import { useRouter, useRuntimeConfig } from '#imports';
-
-const router = useRouter();
-const config = useRuntimeConfig(); // Fetch runtime config
-const apiBase = config.public.API_BASE; // Correct way to access
-
-const username = ref('');
-const password = ref('');
-const errorMessage = ref('');
-
-const login = async () => {
-  try {
-    const response = await $fetch(`${apiBase}/login/`, {
-      method: 'POST',
-      body: {
-        username: username.value,
-        password: password.value,
-      },
-    });
-
-    // Store tokens
-    localStorage.setItem('access_token', response.access);
-    localStorage.setItem('refresh_token', response.refresh);
-
-    router.push('/dashboard');
-  } catch (error) {
-    errorMessage.value = error.data?.error || 'Login failed.';
-  }
-};
-</script>
 
   
   <style scoped>
