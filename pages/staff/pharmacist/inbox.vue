@@ -2,51 +2,30 @@
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
 
-const patientName = ref('');
-const patientId = ref('');
-const services = ref([]);
-const totalAmount = ref(0);
-const billingResponse = ref(null);
+const messages = ref([]);
 
-async function fetchBillingData() {
+async function fetchMessages() {
   try {
-    const response = await fetch(`${apiBase}/api/billings/create`, {
-      method: 'POST',
+    const response = await fetch(`${apiBase}/Managment/inbox`, {
       headers: {
-        'Content-Type': 'application/json',
         Authorization: `Bearer ${localStorage.getItem('access_token')}`
-      },
-      body: JSON.stringify({
-        patient_id: patientId.value,
-        amount: totalAmount.value,
-        description: 'Consultation and Laboratory Tests'
-      })
+      }
     });
-    if (!response.ok) throw new Error('Failed to create invoice');
-    billingResponse.value = await response.json();
+    if (!response.ok) throw new Error('Failed to fetch messages');
+    const data = await response.json();
+    messages.value = data;
   } catch (error) {
-    console.error('Error creating invoice:', error);
+    console.error('Error fetching messages:', error);
   }
 }
 
-function addService(service, price) {
-  services.value.push({ name: service, price });
-  totalAmount.value += price;
+function formatDate(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleString();
 }
 
-function handleProcessPayment() {
-  if (!patientId.value || !totalAmount.value) {
-    alert('Please fill out all required fields.');
-    return;
-  }
-  fetchBillingData();
-}
-
-// Simulate adding services dynamically for demonstration
-onMounted(() => {
-  addService('Consultation', 150.00);
-  addService('Laboratory Test', 75.00);
-});
+// Fetch messages on mount
+onMounted(fetchMessages);
 </script>
 
 <template>
@@ -56,48 +35,48 @@ onMounted(() => {
         <!-- Sidebar -->
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Cashier Dashboard</div>
+            <div class="text-white text-xl font-bold mb-8">Record Officer Dashboard</div>
             <a
-              href="/staff/cashier/approve"
+              href="/staff/record_officer/patient_registrar"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
-              <span class="material-symbols-outlined mr-2">payments</span>
-              Approve Payments
+              <span class="material-symbols-outlined mr-2">person_add</span>
+              Pending Registrations
             </a>
             <a
-              href="/staff/cashier/orderbill"
+              href="/staff/record_officer/patient_record"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
-              <span class="material-symbols-outlined mr-2">receipt_long</span>
-              Order Bill
+              <span class="material-symbols-outlined mr-2">folder_supervised</span>
+              Patient Records
             </a>
             <a
-              href="/staff/cashier/paymenthistory"
+              href="/staff/record_officer/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
-              <span class="material-symbols-outlined mr-2">history</span>
-              Payment History
+              <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
             </a>
             <a
-              href="/staff/cashier/inbox"
-              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/record_officer/inbox"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
             </a>
             <a
-              href="/staff/cashier/attendance"
+              href="/staff/record_officer/attendance"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">schedule</span>
               Attendance
             </a>
             <a
-              href="/staff/cashier/notifications"
+              href="/staff/record_officer/assignroom"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
-              <span class="material-symbols-outlined mr-2">notifications</span>
-              Notifications
+              <span class="material-symbols-outlined mr-2">meeting_room</span>
+              Assign Room
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -105,94 +84,62 @@ onMounted(() => {
           </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
-          <div class="max-w-4xl mx-auto">
-            <div class="bg-white rounded-xl shadow-lg p-8">
-              <!-- Header -->
-              <div class="flex items-center justify-between mb-8">
-                <h2 class="text-2xl font-semibold">Order Bill</h2>
-                <div class="flex gap-4">
-                  <button class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-all duration-200">
-                    New Order
-                  </button>
-                  <button class="border border-emerald-500 text-emerald-500 px-4 py-2 rounded-lg hover:bg-emerald-50 transition-all duration-200">
-                    Print Bill
-                  </button>
-                </div>
-              </div>
+        <div class="space-y-6">
+          <!-- Inbox Header -->
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold">Inbox</h2>
+            <button
+              @click="fetchMessages"
+              class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
+            >
+              <span class="material-symbols-outlined">refresh</span>
+              Refresh
+            </button>
+          </div>
 
-              <!-- Order Form -->
-              <div class="space-y-6">
-                <div class="grid grid-cols-2 gap-6">
-                  <div>
-                    <label class="block text-sm font-medium mb-2">Patient Name</label>
-                    <input
-                      v-model="patientName"
-                      type="text"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      placeholder="Enter patient name"
-                    />
+          <!-- Messages -->
+          <div v-if="messages.length" class="grid gap-4">
+            <div
+              v-for="message in messages"
+              :key="message.id"
+              :class="[
+                'bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 border-l-4',
+                message.is_read ? 'border-gray-300' : 'border-emerald-500'
+              ]"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-2xl text-emerald-600">
+                      account_circle
+                    </span>
                   </div>
                   <div>
-                    <label class="block text-sm font-medium mb-2">Patient ID</label>
-                    <input
-                      v-model="patientId"
-                      type="text"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      placeholder="Enter patient ID"
-                    />
+                    <h3 class="text-lg font-semibold">{{ message.sender }}</h3>
+                    <p class="text-sm text-gray-500">{{ message.subject }}</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ formatDate(message.timestamp) }}</p>
                   </div>
                 </div>
-
-                <!-- Services Section -->
-                <div class="bg-emerald-50 rounded-lg p-6">
-                  <h3 class="text-lg font-semibold mb-4">Services</h3>
-                  <div class="space-y-4">
-                    <div class="flex items-center justify-between p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200">
-                      <div>
-                        <h4 class="font-medium">Consultation</h4>
-                        <p class="text-sm text-gray-500">General checkup</p>
-                      </div>
-                      <div class="text-lg font-semibold">$150.00</div>
-                    </div>
-
-                    <div class="flex items-center justify-between p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200">
-                      <div>
-                        <h4 class="font-medium">Laboratory Test</h4>
-                        <p class="text-sm text-gray-500">Blood work</p>
-                      </div>
-                      <div class="text-lg font-semibold">$75.00</div>
-                    </div>
-                  </div>
-
-                  <!-- Total Amount -->
-                  <div class="mt-6 pt-6 border-t border-emerald-200">
-                    <div class="flex justify-between items-center text-lg font-semibold">
-                      <span>Total Amount</span>
-                      <span>${{ totalAmount }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="flex justify-end gap-4">
-                  <button class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200">
-                    Cancel
+                <div class="flex items-center gap-2">
+                  <button class="text-gray-400 hover:text-emerald-600 transition-colors duration-200">
+                    <span class="material-symbols-outlined">reply</span>
                   </button>
-                  <button @click="createInvoice" class="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all duration-200">
-                    Process Payment
+                  <button class="text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">more_vert</span>
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </main>
+
+          <div v-else class="text-center text-gray-500">No messages found.</div>
+        </div>
+      </main>
       </div>
     </div>
   </div>
 </template>
-
   
   <style scoped>
     @import url(https://fonts.googleapis.com/css2?family=Inter&display=swap);
@@ -525,15 +472,8 @@ onMounted(() => {
       --tw-contain-paint: ;
       --tw-contain-style: ;
     }
-    #webcrumbs .mx-auto {
-      margin-left: auto;
-      margin-right: auto;
-    }
-    #webcrumbs .mb-2 {
-      margin-bottom: 6px;
-    }
-    #webcrumbs .mb-4 {
-      margin-bottom: 12px;
+    #webcrumbs .mb-6 {
+      margin-bottom: 18px;
     }
     #webcrumbs .mb-8 {
       margin-bottom: 24px;
@@ -544,14 +484,11 @@ onMounted(() => {
     #webcrumbs .mr-2 {
       margin-right: 6px;
     }
-    #webcrumbs .mt-6 {
-      margin-top: 18px;
+    #webcrumbs .mt-1 {
+      margin-top: 3px;
     }
     #webcrumbs .mt-auto {
       margin-top: auto;
-    }
-    #webcrumbs .block {
-      display: block;
     }
     #webcrumbs .flex {
       display: flex;
@@ -559,26 +496,23 @@ onMounted(() => {
     #webcrumbs .grid {
       display: grid;
     }
+    #webcrumbs .h-12 {
+      height: 36px;
+    }
     #webcrumbs .h-\[1080px\] {
       height: 1080px;
     }
     #webcrumbs .h-full {
       height: 100%;
     }
+    #webcrumbs .w-12 {
+      width: 36px;
+    }
     #webcrumbs .w-64 {
       width: 192px;
     }
-    #webcrumbs .w-full {
-      width: 100%;
-    }
-    #webcrumbs .max-w-4xl {
-      max-width: 56rem;
-    }
     #webcrumbs .flex-1 {
       flex: 1 1 0%;
-    }
-    #webcrumbs .grid-cols-2 {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     #webcrumbs .flex-row {
       flex-direction: row;
@@ -589,17 +523,17 @@ onMounted(() => {
     #webcrumbs .items-center {
       align-items: center;
     }
-    #webcrumbs .justify-end {
-      justify-content: flex-end;
+    #webcrumbs .justify-center {
+      justify-content: center;
     }
     #webcrumbs .justify-between {
       justify-content: space-between;
     }
+    #webcrumbs .gap-2 {
+      gap: 6px;
+    }
     #webcrumbs .gap-4 {
       gap: 12px;
-    }
-    #webcrumbs .gap-6 {
-      gap: 18px;
     }
     #webcrumbs :is(.space-y-4 > :not([hidden]) ~ :not([hidden])) {
       --tw-space-y-reverse: 0;
@@ -623,15 +557,11 @@ onMounted(() => {
     #webcrumbs .rounded-xl {
       border-radius: 12px;
     }
-    #webcrumbs .border {
-      border-width: 1px;
+    #webcrumbs .border-l-4 {
+      border-left-width: 4px;
     }
     #webcrumbs .border-t {
       border-top-width: 1px;
-    }
-    #webcrumbs .border-emerald-200 {
-      --tw-border-opacity: 1;
-      border-color: rgb(167 243 208 / var(--tw-border-opacity));
     }
     #webcrumbs .border-emerald-500 {
       --tw-border-opacity: 1;
@@ -641,9 +571,9 @@ onMounted(() => {
       --tw-border-opacity: 1;
       border-color: rgb(6 95 70 / var(--tw-border-opacity));
     }
-    #webcrumbs .border-gray-300 {
-      --tw-border-opacity: 1;
-      border-color: rgb(209 213 219 / var(--tw-border-opacity));
+    #webcrumbs .bg-emerald-100 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(209 250 229 / var(--tw-bg-opacity));
     }
     #webcrumbs .bg-emerald-50 {
       --tw-bg-opacity: 1;
@@ -672,9 +602,6 @@ onMounted(() => {
     #webcrumbs .p-2 {
       padding: 6px;
     }
-    #webcrumbs .p-4 {
-      padding: 12px;
-    }
     #webcrumbs .p-6 {
       padding: 18px;
     }
@@ -688,10 +615,6 @@ onMounted(() => {
     #webcrumbs .px-4 {
       padding-left: 12px;
       padding-right: 12px;
-    }
-    #webcrumbs .px-6 {
-      padding-left: 18px;
-      padding-right: 18px;
     }
     #webcrumbs .py-1 {
       padding-bottom: 3px;
@@ -730,9 +653,6 @@ onMounted(() => {
     #webcrumbs .font-bold {
       font-weight: 700;
     }
-    #webcrumbs .font-medium {
-      font-weight: 500;
-    }
     #webcrumbs .font-semibold {
       font-weight: 600;
     }
@@ -740,9 +660,13 @@ onMounted(() => {
       --tw-text-opacity: 1;
       color: rgb(167 243 208 / var(--tw-text-opacity));
     }
-    #webcrumbs .text-emerald-500 {
+    #webcrumbs .text-emerald-600 {
       --tw-text-opacity: 1;
-      color: rgb(16 185 129 / var(--tw-text-opacity));
+      color: rgb(5 150 105 / var(--tw-text-opacity));
+    }
+    #webcrumbs .text-gray-400 {
+      --tw-text-opacity: 1;
+      color: rgb(156 163 175 / var(--tw-text-opacity));
     }
     #webcrumbs .text-gray-500 {
       --tw-text-opacity: 1;
@@ -765,16 +689,26 @@ onMounted(() => {
       transition-property: all;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     }
+    #webcrumbs .transition-colors {
+      transition-duration: 0.15s;
+      transition-property: color, background-color, border-color,
+        text-decoration-color, fill, stroke;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #webcrumbs .transition-shadow {
+      transition-duration: 0.15s;
+      transition-property: box-shadow;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
     #webcrumbs .duration-200 {
       transition-duration: 0.2s;
+    }
+    #webcrumbs .duration-300 {
+      transition-duration: 0.3s;
     }
     #webcrumbs {
       font-family: Inter !important;
       font-size: 14px !important;
-    }
-    #webcrumbs .hover\:bg-emerald-50:hover {
-      --tw-bg-opacity: 1;
-      background-color: rgb(236 253 245 / var(--tw-bg-opacity));
     }
     #webcrumbs .hover\:bg-emerald-600:hover {
       --tw-bg-opacity: 1;
@@ -784,33 +718,21 @@ onMounted(() => {
       --tw-bg-opacity: 1;
       background-color: rgb(6 95 70 / var(--tw-bg-opacity));
     }
-    #webcrumbs .hover\:bg-gray-50:hover {
-      --tw-bg-opacity: 1;
-      background-color: rgb(249 250 251 / var(--tw-bg-opacity));
+    #webcrumbs .hover\:text-emerald-600:hover {
+      --tw-text-opacity: 1;
+      color: rgb(5 150 105 / var(--tw-text-opacity));
     }
-    #webcrumbs .hover\:shadow-md:hover {
-      --tw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-        0 2px 4px -2px rgba(0, 0, 0, 0.1);
-      --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color),
-        0 2px 4px -2px var(--tw-shadow-color);
+    #webcrumbs .hover\:text-gray-600:hover {
+      --tw-text-opacity: 1;
+      color: rgb(75 85 99 / var(--tw-text-opacity));
+    }
+    #webcrumbs .hover\:shadow-xl:hover {
+      --tw-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color),
+        0 8px 10px -6px var(--tw-shadow-color);
       box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
         var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
-    }
-    #webcrumbs .focus\:border-emerald-500:focus {
-      --tw-border-opacity: 1;
-      border-color: rgb(16 185 129 / var(--tw-border-opacity));
-    }
-    #webcrumbs .focus\:ring-2:focus {
-      --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0
-        var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-      --tw-ring-shadow: var(--tw-ring-inset) 0 0 0
-        calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-      box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow),
-        var(--tw-shadow, 0 0 #0000);
-    }
-    #webcrumbs .focus\:ring-emerald-500:focus {
-      --tw-ring-opacity: 1;
-      --tw-ring-color: rgb(16 185 129 / var(--tw-ring-opacity));
     }
     
   </style>

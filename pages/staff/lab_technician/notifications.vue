@@ -90,59 +90,56 @@ onMounted(() => {
   <div id="webcrumbs">
     <div class="h-[1080px]">
       <div class="flex h-full">
-        <!-- Sidebar -->
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Cashier Dashboard</div>
+            <div class="text-white text-xl font-bold mb-8">Record Officer Dashboard</div>
             <a
-              href="/staff/cashier/approve"
+              href="/staff/record_officer/patient_registrar"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
-              <span class="material-symbols-outlined mr-2">payments</span>
-              Approve Payments
+              <span class="material-symbols-outlined mr-2">person_add</span>
+              Pending Registrations
             </a>
             <a
-              href="/staff/cashier/orderbill"
+              href="/staff/record_officer/patient_record"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
-              <span class="material-symbols-outlined mr-2">receipt_long</span>
-              Order Bill
+              <span class="material-symbols-outlined mr-2">folder_supervised</span>
+              Patient Records
             </a>
             <a
-              href="/staff/cashier/paymenthistory"
+              href="/staff/record_officer/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
-              <span class="material-symbols-outlined mr-2">history</span>
-              Payment History
+              <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
             </a>
             <a
-              href="/staff/cashier/inbox"
-              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/record_officer/inbox"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">inbox</span>
               Inbox
             </a>
             <a
-              href="/staff/cashier/attendance"
+              href="/staff/record_officer/attendance"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
               <span class="material-symbols-outlined mr-2">schedule</span>
               Attendance
             </a>
             <a
-              href="/staff/cashier/notifications"
+              href="/staff/record_officer/assignroom"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
-              <span class="material-symbols-outlined mr-2">notifications</span>
-              Notifications
+              <span class="material-symbols-outlined mr-2">meeting_room</span>
+              Assign Room
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
           </div>
         </aside>
-
-        <!-- Main Content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
           <div class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-xl mb-8 flex flex-col md:flex-row justify-between items-center">
             <h2 class="text-2xl font-bold text-emerald-900 mb-4 md:mb-0">Notifications</h2>
@@ -190,6 +187,7 @@ onMounted(() => {
     
     /*! tailwindcss v3.4.11 | MIT License | https://tailwindcss.com*/
     *,
+   
     :after,
     :before {
       border: 0 solid #e5e7eb;
@@ -514,9 +512,8 @@ onMounted(() => {
       --tw-contain-paint: ;
       --tw-contain-style: ;
     }
-    #webcrumbs .mx-auto {
-      margin-left: auto;
-      margin-right: auto;
+    #webcrumbs .mb-6 {
+      margin-bottom: 18px;
     }
     #webcrumbs .mb-8 {
       margin-bottom: 24px;
@@ -524,17 +521,11 @@ onMounted(() => {
     #webcrumbs .ml-2 {
       margin-left: 6px;
     }
-    #webcrumbs .mr-1 {
-      margin-right: 3px;
-    }
     #webcrumbs .mr-2 {
       margin-right: 6px;
     }
     #webcrumbs .mt-1 {
       margin-top: 3px;
-    }
-    #webcrumbs .mt-2 {
-      margin-top: 6px;
     }
     #webcrumbs .mt-auto {
       margin-top: auto;
@@ -542,23 +533,26 @@ onMounted(() => {
     #webcrumbs .flex {
       display: flex;
     }
+    #webcrumbs .grid {
+      display: grid;
+    }
+    #webcrumbs .h-12 {
+      height: 36px;
+    }
     #webcrumbs .h-\[1080px\] {
       height: 1080px;
     }
     #webcrumbs .h-full {
       height: 100%;
     }
+    #webcrumbs .w-12 {
+      width: 36px;
+    }
     #webcrumbs .w-64 {
       width: 192px;
     }
-    #webcrumbs .max-w-4xl {
-      max-width: 56rem;
-    }
     #webcrumbs .flex-1 {
       flex: 1 1 0%;
-    }
-    #webcrumbs .cursor-pointer {
-      cursor: pointer;
     }
     #webcrumbs .flex-row {
       flex-direction: row;
@@ -566,11 +560,11 @@ onMounted(() => {
     #webcrumbs .flex-col {
       flex-direction: column;
     }
-    #webcrumbs .items-start {
-      align-items: flex-start;
-    }
     #webcrumbs .items-center {
       align-items: center;
+    }
+    #webcrumbs .justify-center {
+      justify-content: center;
     }
     #webcrumbs .justify-between {
       justify-content: space-between;
@@ -586,6 +580,27 @@ onMounted(() => {
       margin-bottom: calc(12px * var(--tw-space-y-reverse));
       margin-top: calc(12px * (1 - var(--tw-space-y-reverse)));
     }
+    #webcrumbs :is(.space-y-6 > :not([hidden]) ~ :not([hidden])) {
+      --tw-space-y-reverse: 0;
+      margin-bottom: calc(18px * var(--tw-space-y-reverse));
+      margin-top: calc(18px * (1 - var(--tw-space-y-reverse)));
+    }
+    #webcrumbs :is(.space-x-4 > :not([hidden]) ~ :not([hidden])) {
+      --tw-space-x-reverse: 0;
+      margin-left: calc(12px * (1 - var(--tw-space-x-reverse)));
+      margin-right: calc(12px * var(--tw-space-x-reverse));
+    }
+    #webcrumbs .bg-gradient-to-r {
+      background-image: linear-gradient(to right, var(--tw-gradient-stops));
+    }
+    #webcrumbs .from-emerald-100 {
+      --tw-gradient-from: #d1fae5 var(--tw-gradient-from-position);
+      --tw-gradient-to: rgba(209, 250, 229, 0) var(--tw-gradient-to-position);
+      --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    #webcrumbs .to-white {
+      --tw-gradient-to: #fff var(--tw-gradient-to-position);
+    }
     #webcrumbs .overflow-y-auto {
       overflow-y: auto;
     }
@@ -598,28 +613,39 @@ onMounted(() => {
     #webcrumbs .rounded-xl {
       border-radius: 12px;
     }
+    #webcrumbs .border-l-4 {
+      border-left-width: 4px;
+    }
     #webcrumbs .border-t {
       border-top-width: 1px;
+    }
+    #webcrumbs .border-blue-500 {
+      --tw-border-opacity: 1;
+      border-color: rgb(59 130 246 / var(--tw-border-opacity));
     }
     #webcrumbs .border-emerald-800 {
       --tw-border-opacity: 1;
       border-color: rgb(6 95 70 / var(--tw-border-opacity));
     }
+    #webcrumbs .border-red-500 {
+      --tw-border-opacity: 1;
+      border-color: rgb(239 68 68 / var(--tw-border-opacity));
+    }
+    #webcrumbs .border-yellow-500 {
+      --tw-border-opacity: 1;
+      border-color: rgb(234 179 8 / var(--tw-border-opacity));
+    }
     #webcrumbs .bg-blue-100 {
       --tw-bg-opacity: 1;
       background-color: rgb(219 234 254 / var(--tw-bg-opacity));
-    }
-    #webcrumbs .bg-blue-600 {
-      --tw-bg-opacity: 1;
-      background-color: rgb(37 99 235 / var(--tw-bg-opacity));
     }
     #webcrumbs .bg-emerald-50 {
       --tw-bg-opacity: 1;
       background-color: rgb(236 253 245 / var(--tw-bg-opacity));
     }
-    #webcrumbs .bg-emerald-600 {
+    #webcrumbs .bg-emerald-500 {
       --tw-bg-opacity: 1;
-      background-color: rgb(5 150 105 / var(--tw-bg-opacity));
+      background-color: rgb(16 185 129 / var(--tw-bg-opacity));
     }
     #webcrumbs .bg-emerald-800 {
       --tw-bg-opacity: 1;
@@ -628,18 +654,6 @@ onMounted(() => {
     #webcrumbs .bg-emerald-900 {
       --tw-bg-opacity: 1;
       background-color: rgb(6 78 59 / var(--tw-bg-opacity));
-    }
-    #webcrumbs .bg-gray-100 {
-      --tw-bg-opacity: 1;
-      background-color: rgb(243 244 246 / var(--tw-bg-opacity));
-    }
-    #webcrumbs .bg-gray-400 {
-      --tw-bg-opacity: 1;
-      background-color: rgb(156 163 175 / var(--tw-bg-opacity));
-    }
-    #webcrumbs .bg-gray-50 {
-      --tw-bg-opacity: 1;
-      background-color: rgb(249 250 251 / var(--tw-bg-opacity));
     }
     #webcrumbs .bg-red-100 {
       --tw-bg-opacity: 1;
@@ -653,11 +667,12 @@ onMounted(() => {
       --tw-bg-opacity: 1;
       background-color: rgb(255 255 255 / var(--tw-bg-opacity));
     }
+    #webcrumbs .bg-yellow-100 {
+      --tw-bg-opacity: 1;
+      background-color: rgb(254 249 195 / var(--tw-bg-opacity));
+    }
     #webcrumbs .p-2 {
       padding: 6px;
-    }
-    #webcrumbs .p-3 {
-      padding: 9px;
     }
     #webcrumbs .p-6 {
       padding: 18px;
@@ -668,10 +683,6 @@ onMounted(() => {
     #webcrumbs .px-2 {
       padding-left: 6px;
       padding-right: 6px;
-    }
-    #webcrumbs .px-3 {
-      padding-left: 9px;
-      padding-right: 9px;
     }
     #webcrumbs .px-4 {
       padding-left: 12px;
@@ -714,9 +725,6 @@ onMounted(() => {
     #webcrumbs .font-bold {
       font-weight: 700;
     }
-    #webcrumbs .font-medium {
-      font-weight: 500;
-    }
     #webcrumbs .font-semibold {
       font-weight: 600;
     }
@@ -736,10 +744,6 @@ onMounted(() => {
       --tw-text-opacity: 1;
       color: rgb(107 114 128 / var(--tw-text-opacity));
     }
-    #webcrumbs .text-gray-600 {
-      --tw-text-opacity: 1;
-      color: rgb(75 85 99 / var(--tw-text-opacity));
-    }
     #webcrumbs .text-red-600 {
       --tw-text-opacity: 1;
       color: rgb(220 38 38 / var(--tw-text-opacity));
@@ -747,6 +751,10 @@ onMounted(() => {
     #webcrumbs .text-white {
       --tw-text-opacity: 1;
       color: rgb(255 255 255 / var(--tw-text-opacity));
+    }
+    #webcrumbs .text-yellow-600 {
+      --tw-text-opacity: 1;
+      color: rgb(202 138 4 / var(--tw-text-opacity));
     }
     #webcrumbs .shadow-lg {
       --tw-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
@@ -761,26 +769,44 @@ onMounted(() => {
       transition-property: all;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     }
+    #webcrumbs .transition-colors {
+      transition-duration: 0.15s;
+      transition-property: color, background-color, border-color,
+        text-decoration-color, fill, stroke;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #webcrumbs .transition-shadow {
+      transition-duration: 0.15s;
+      transition-property: box-shadow;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
     #webcrumbs .duration-200 {
       transition-duration: 0.2s;
+    }
+    #webcrumbs .duration-300 {
+      transition-duration: 0.3s;
     }
     #webcrumbs {
       font-family: Inter !important;
       font-size: 14px !important;
     }
-    #webcrumbs .hover\:bg-emerald-100:hover {
+    #webcrumbs .hover\:bg-emerald-600:hover {
       --tw-bg-opacity: 1;
-      background-color: rgb(209 250 229 / var(--tw-bg-opacity));
+      background-color: rgb(5 150 105 / var(--tw-bg-opacity));
     }
     #webcrumbs .hover\:bg-emerald-800:hover {
       --tw-bg-opacity: 1;
       background-color: rgb(6 95 70 / var(--tw-bg-opacity));
     }
-    #webcrumbs .hover\:shadow-md:hover {
-      --tw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-        0 2px 4px -2px rgba(0, 0, 0, 0.1);
-      --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color),
-        0 2px 4px -2px var(--tw-shadow-color);
+    #webcrumbs .hover\:text-gray-600:hover {
+      --tw-text-opacity: 1;
+      color: rgb(75 85 99 / var(--tw-text-opacity));
+    }
+    #webcrumbs .hover\:shadow-xl:hover {
+      --tw-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+        0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color),
+        0 8px 10px -6px var(--tw-shadow-color);
       box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
         var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
     }

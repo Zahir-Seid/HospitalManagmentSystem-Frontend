@@ -67,6 +67,13 @@ onMounted(fetchInvoices)
               Inbox
             </a>
             <a
+              href="/staff/cashier/attendance"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+            >
+              <span class="material-symbols-outlined mr-2">schedule</span>
+              Attendance
+            </a>
+            <a
               href="/staff/cashier/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
             >
@@ -74,7 +81,6 @@ onMounted(fetchInvoices)
               Notifications
             </a>
           </nav>
-
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
           </div>

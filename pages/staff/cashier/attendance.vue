@@ -1,54 +1,40 @@
 <script setup>
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
+const checkInTime = ref('')
+const checkOutTime = ref('')
+const todaySummary = ref(null)
 
-const patientName = ref('');
-const patientId = ref('');
-const services = ref([]);
-const totalAmount = ref(0);
-const billingResponse = ref(null);
-
-async function fetchBillingData() {
+const markAttendance = async () => {
   try {
-    const response = await fetch(`${apiBase}/api/billings/create`, {
+    if (!checkInTime.value && !checkOutTime.value) {
+      alert('Please enter at least one time (check-in or check-out)')
+      return
+    }
+
+    const action = checkInTime.value && !checkOutTime.value ? 'check_in' : 'check_out'
+    const time = checkInTime.value || checkOutTime.value
+
+    const response = await fetch(`${apiBase}/management/attendance`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`
+        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
       },
-      body: JSON.stringify({
-        patient_id: patientId.value,
-        amount: totalAmount.value,
-        description: 'Consultation and Laboratory Tests'
-      })
-    });
-    if (!response.ok) throw new Error('Failed to create invoice');
-    billingResponse.value = await response.json();
+      body: JSON.stringify({ action, time: `${time}:00` }),
+    })
+
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || 'Failed to mark attendance')
+
+    todaySummary.value = data
+    alert('Attendance marked successfully!')
   } catch (error) {
-    console.error('Error creating invoice:', error);
+    console.error(error)
+    alert(error.message)
   }
 }
-
-function addService(service, price) {
-  services.value.push({ name: service, price });
-  totalAmount.value += price;
-}
-
-function handleProcessPayment() {
-  if (!patientId.value || !totalAmount.value) {
-    alert('Please fill out all required fields.');
-    return;
-  }
-  fetchBillingData();
-}
-
-// Simulate adding services dynamically for demonstration
-onMounted(() => {
-  addService('Consultation', 150.00);
-  addService('Laboratory Test', 75.00);
-});
 </script>
-
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -105,89 +91,78 @@ onMounted(() => {
           </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
-          <div class="max-w-4xl mx-auto">
-            <div class="bg-white rounded-xl shadow-lg p-8">
-              <!-- Header -->
-              <div class="flex items-center justify-between mb-8">
-                <h2 class="text-2xl font-semibold">Order Bill</h2>
-                <div class="flex gap-4">
-                  <button class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-all duration-200">
-                    New Order
-                  </button>
-                  <button class="border border-emerald-500 text-emerald-500 px-4 py-2 rounded-lg hover:bg-emerald-50 transition-all duration-200">
-                    Print Bill
-                  </button>
+        <div class="space-y-6">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold">Attendance</h2>
+          </div>
+
+          <!-- Attendance Form -->
+          <div class="bg-white rounded-xl shadow-lg p-8">
+            <form @submit.prevent="markAttendance">
+              <div class="grid grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Check In Time</label>
+                  <input
+                    v-model="checkInTime"
+                    type="time"
+                    class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Check Out Time</label>
+                  <input
+                    v-model="checkOutTime"
+                    type="time"
+                    class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+                  />
                 </div>
               </div>
+              <button
+                type="submit"
+                class="w-full bg-emerald-500 text-white py-3 rounded-lg hover:bg-emerald-600 transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <span class="material-symbols-outlined">check_circle</span>
+                Mark Attendance
+              </button>
+            </form>
+          </div>
 
-              <!-- Order Form -->
-              <div class="space-y-6">
-                <div class="grid grid-cols-2 gap-6">
+          <!-- Attendance Summary -->
+          <div v-if="todaySummary" class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold mb-4">Today's Summary</h3>
+            <div class="grid grid-cols-3 gap-4">
+              <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-emerald-600">login</span>
                   <div>
-                    <label class="block text-sm font-medium mb-2">Patient Name</label>
-                    <input
-                      v-model="patientName"
-                      type="text"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      placeholder="Enter patient name"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-2">Patient ID</label>
-                    <input
-                      v-model="patientId"
-                      type="text"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      placeholder="Enter patient ID"
-                    />
+                    <p class="text-sm text-gray-500">Check In</p>
+                    <p class="font-semibold">{{ todaySummary.check_in || '--:-- --' }}</p>
                   </div>
                 </div>
-
-                <!-- Services Section -->
-                <div class="bg-emerald-50 rounded-lg p-6">
-                  <h3 class="text-lg font-semibold mb-4">Services</h3>
-                  <div class="space-y-4">
-                    <div class="flex items-center justify-between p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200">
-                      <div>
-                        <h4 class="font-medium">Consultation</h4>
-                        <p class="text-sm text-gray-500">General checkup</p>
-                      </div>
-                      <div class="text-lg font-semibold">$150.00</div>
-                    </div>
-
-                    <div class="flex items-center justify-between p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200">
-                      <div>
-                        <h4 class="font-medium">Laboratory Test</h4>
-                        <p class="text-sm text-gray-500">Blood work</p>
-                      </div>
-                      <div class="text-lg font-semibold">$75.00</div>
-                    </div>
-                  </div>
-
-                  <!-- Total Amount -->
-                  <div class="mt-6 pt-6 border-t border-emerald-200">
-                    <div class="flex justify-between items-center text-lg font-semibold">
-                      <span>Total Amount</span>
-                      <span>${{ totalAmount }}</span>
-                    </div>
+              </div>
+              <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-emerald-600">logout</span>
+                  <div>
+                    <p class="text-sm text-gray-500">Check Out</p>
+                    <p class="font-semibold">{{ todaySummary.check_out || '--:-- --' }}</p>
                   </div>
                 </div>
-
-                <!-- Action Buttons -->
-                <div class="flex justify-end gap-4">
-                  <button class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200">
-                    Cancel
-                  </button>
-                  <button @click="createInvoice" class="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all duration-200">
-                    Process Payment
-                  </button>
+              </div>
+              <div class="p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                <div class="flex items-center gap-3">
+                  <span class="material-symbols-outlined text-emerald-600">timer</span>
+                  <div>
+                    <p class="text-sm text-gray-500">Total Hours</p>
+                    <p class="font-semibold">{{ todaySummary.total_hours || '-- hrs -- mins' }}</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </main>
+        </div>
+      </main>
       </div>
     </div>
   </div>
@@ -525,15 +500,14 @@ onMounted(() => {
       --tw-contain-paint: ;
       --tw-contain-style: ;
     }
-    #webcrumbs .mx-auto {
-      margin-left: auto;
-      margin-right: auto;
-    }
     #webcrumbs .mb-2 {
       margin-bottom: 6px;
     }
     #webcrumbs .mb-4 {
       margin-bottom: 12px;
+    }
+    #webcrumbs .mb-6 {
+      margin-bottom: 18px;
     }
     #webcrumbs .mb-8 {
       margin-bottom: 24px;
@@ -543,9 +517,6 @@ onMounted(() => {
     }
     #webcrumbs .mr-2 {
       margin-right: 6px;
-    }
-    #webcrumbs .mt-6 {
-      margin-top: 18px;
     }
     #webcrumbs .mt-auto {
       margin-top: auto;
@@ -571,14 +542,19 @@ onMounted(() => {
     #webcrumbs .w-full {
       width: 100%;
     }
-    #webcrumbs .max-w-4xl {
-      max-width: 56rem;
-    }
     #webcrumbs .flex-1 {
       flex: 1 1 0%;
     }
+    #webcrumbs .transform {
+      transform: translate(var(--tw-translate-x), var(--tw-translate-y))
+        rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y))
+        scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+    }
     #webcrumbs .grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    #webcrumbs .grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     #webcrumbs .flex-row {
       flex-direction: row;
@@ -589,11 +565,17 @@ onMounted(() => {
     #webcrumbs .items-center {
       align-items: center;
     }
-    #webcrumbs .justify-end {
-      justify-content: flex-end;
+    #webcrumbs .justify-center {
+      justify-content: center;
     }
     #webcrumbs .justify-between {
       justify-content: space-between;
+    }
+    #webcrumbs .gap-2 {
+      gap: 6px;
+    }
+    #webcrumbs .gap-3 {
+      gap: 9px;
     }
     #webcrumbs .gap-4 {
       gap: 12px;
@@ -629,13 +611,9 @@ onMounted(() => {
     #webcrumbs .border-t {
       border-top-width: 1px;
     }
-    #webcrumbs .border-emerald-200 {
+    #webcrumbs .border-emerald-100 {
       --tw-border-opacity: 1;
-      border-color: rgb(167 243 208 / var(--tw-border-opacity));
-    }
-    #webcrumbs .border-emerald-500 {
-      --tw-border-opacity: 1;
-      border-color: rgb(16 185 129 / var(--tw-border-opacity));
+      border-color: rgb(209 250 229 / var(--tw-border-opacity));
     }
     #webcrumbs .border-emerald-800 {
       --tw-border-opacity: 1;
@@ -689,10 +667,6 @@ onMounted(() => {
       padding-left: 12px;
       padding-right: 12px;
     }
-    #webcrumbs .px-6 {
-      padding-left: 18px;
-      padding-right: 18px;
-    }
     #webcrumbs .py-1 {
       padding-bottom: 3px;
       padding-top: 3px;
@@ -700,6 +674,10 @@ onMounted(() => {
     #webcrumbs .py-2 {
       padding-bottom: 6px;
       padding-top: 6px;
+    }
+    #webcrumbs .py-3 {
+      padding-bottom: 9px;
+      padding-top: 9px;
     }
     #webcrumbs .pt-6 {
       padding-top: 18px;
@@ -740,9 +718,9 @@ onMounted(() => {
       --tw-text-opacity: 1;
       color: rgb(167 243 208 / var(--tw-text-opacity));
     }
-    #webcrumbs .text-emerald-500 {
+    #webcrumbs .text-emerald-600 {
       --tw-text-opacity: 1;
-      color: rgb(16 185 129 / var(--tw-text-opacity));
+      color: rgb(5 150 105 / var(--tw-text-opacity));
     }
     #webcrumbs .text-gray-500 {
       --tw-text-opacity: 1;
@@ -765,6 +743,12 @@ onMounted(() => {
       transition-property: all;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     }
+    #webcrumbs .transition-colors {
+      transition-duration: 0.15s;
+      transition-property: color, background-color, border-color,
+        text-decoration-color, fill, stroke;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    }
     #webcrumbs .duration-200 {
       transition-duration: 0.2s;
     }
@@ -772,9 +756,12 @@ onMounted(() => {
       font-family: Inter !important;
       font-size: 14px !important;
     }
-    #webcrumbs .hover\:bg-emerald-50:hover {
-      --tw-bg-opacity: 1;
-      background-color: rgb(236 253 245 / var(--tw-bg-opacity));
+    #webcrumbs .hover\:scale-\[1\.02\]:hover {
+      --tw-scale-x: 1.02;
+      --tw-scale-y: 1.02;
+      transform: translate(var(--tw-translate-x), var(--tw-translate-y))
+        rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y))
+        scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
     }
     #webcrumbs .hover\:bg-emerald-600:hover {
       --tw-bg-opacity: 1;
@@ -783,18 +770,6 @@ onMounted(() => {
     #webcrumbs .hover\:bg-emerald-800:hover {
       --tw-bg-opacity: 1;
       background-color: rgb(6 95 70 / var(--tw-bg-opacity));
-    }
-    #webcrumbs .hover\:bg-gray-50:hover {
-      --tw-bg-opacity: 1;
-      background-color: rgb(249 250 251 / var(--tw-bg-opacity));
-    }
-    #webcrumbs .hover\:shadow-md:hover {
-      --tw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-        0 2px 4px -2px rgba(0, 0, 0, 0.1);
-      --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color),
-        0 2px 4px -2px var(--tw-shadow-color);
-      box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000),
-        var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
     }
     #webcrumbs .focus\:border-emerald-500:focus {
       --tw-border-opacity: 1;
