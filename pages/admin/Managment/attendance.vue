@@ -47,8 +47,8 @@ onMounted(fetchAttendanceRecords);
             <ul>
               <li class="mb-1">
                 <a
-                  href="#dashboard"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
+                  href="/admin/Managment/dashboard"
+                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">dashboard</span>
                   Dashboard
@@ -56,16 +56,7 @@ onMounted(fetchAttendanceRecords);
               </li>
               <li class="mb-1">
                 <a
-                  href="#finance"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">payments</span>
-                  Finance
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="#attendance"
+                  href="/admin/Managment/attendance"
                   class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3"
@@ -76,7 +67,7 @@ onMounted(fetchAttendanceRecords);
               </li>
               <li class="mb-1">
                 <a
-                  href="#employees"
+                  href="/admin/Managment/employee"
                   class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">group</span>
@@ -85,7 +76,7 @@ onMounted(fetchAttendanceRecords);
               </li>
               <li class="mb-1">
                 <a
-                  href="#feedback"
+                  href="/admin/Managment/feedback"
                   class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">forum</span>
@@ -94,7 +85,7 @@ onMounted(fetchAttendanceRecords);
               </li>
               <li class="mb-1">
                 <a
-                  href="#pricing"
+                  href="/admin/Managment/pricing"
                   class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">sell</span>
@@ -103,33 +94,11 @@ onMounted(fetchAttendanceRecords);
               </li>
               <li class="mb-1">
                 <a
-                  href="#messages"
+                  href="/admin/Managment/chat"
                   class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">inbox</span>
                   Messages
-                  <span
-                    class="ml-auto bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
-                    >3</span
-                  >
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="#reports"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">summarize</span>
-                  Reports
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="#settings"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">settings</span>
-                  Settings
                 </a>
               </li>
             </ul>

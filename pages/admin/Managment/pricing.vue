@@ -1,3 +1,72 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRuntimeConfig } from '#imports';
+
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+// Reactive state
+const services = ref([]);
+const newService = ref({ service_name: '', price: 0 });
+const isLoading = ref(false);
+const errorMessage = ref('');
+const isModalOpen = ref(false); // Modal state
+
+// Auth headers
+const authHeaders = {
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+  },
+};
+
+// Fetch all service prices
+const fetchServices = async () => {
+  isLoading.value = true;
+  try {
+    const response = await fetch(`${apiBase}/api/Managment/services`, authHeaders);
+    if (!response.ok) throw new Error('Failed to fetch services');
+    services.value = await response.json();
+  } catch (error) {
+    errorMessage.value = error.message;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Add or update service price
+const saveService = async () => {
+  try {
+    const response = await fetch(`${apiBase}/api/Managment/services`, {
+      method: 'POST',
+      headers: authHeaders.headers,
+      body: JSON.stringify(newService.value),
+    });
+
+    if (!response.ok) throw new Error('Failed to save service');
+    await fetchServices(); // Refresh the list
+    isModalOpen.value = false; // Close modal
+    newService.value = { service_name: '', price: 0 }; // Reset form
+  } catch (error) {
+    errorMessage.value = error.message;
+  }
+};
+
+// Open modal for adding service
+const openModal = () => {
+  isModalOpen.value = true;
+};
+
+// Close modal
+const closeModal = () => {
+  isModalOpen.value = false;
+};
+
+// Fetch services on mount
+onMounted(fetchServices);
+</script>
+
+
 <template
   ><div id="webcrumbs">
     <div class="w-full min-h-screen bg-gray-50 flex">
@@ -12,8 +81,8 @@
             <ul>
               <li class="mb-1">
                 <a
-                  href="#dashboard"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
+                  href="/admin/Managment/dashboard"
+                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">dashboard</span>
                   Dashboard
@@ -21,17 +90,8 @@
               </li>
               <li class="mb-1">
                 <a
-                  href="#finance"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">payments</span>
-                  Finance
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="#attendance"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
+                  href="/admin/Managment/attendance"
+                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3"
                     >calendar_month</span
@@ -41,7 +101,7 @@
               </li>
               <li class="mb-1">
                 <a
-                  href="#employees"
+                  href="/admin/Managment/employee"
                   class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">group</span>
@@ -50,7 +110,7 @@
               </li>
               <li class="mb-1">
                 <a
-                  href="#feedback"
+                  href="/admin/Managment/feedback"
                   class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">forum</span>
@@ -59,8 +119,8 @@
               </li>
               <li class="mb-1">
                 <a
-                  href="#pricing"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+                  href="/admin/Managment/pricing"
+                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">sell</span>
                   Pricing
@@ -68,33 +128,11 @@
               </li>
               <li class="mb-1">
                 <a
-                  href="#messages"
+                  href="/admin/Managment/chat"
                   class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
                 >
                   <span class="material-symbols-outlined mr-3">inbox</span>
                   Messages
-                  <span
-                    class="ml-auto bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
-                    >3</span
-                  >
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="#reports"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">summarize</span>
-                  Reports
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="#settings"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">settings</span>
-                  Settings
                 </a>
               </li>
             </ul>
@@ -107,641 +145,118 @@
         </div>
       </div>
       <div class="flex-1 p-8">
-        <div class="flex justify-between items-center mb-8">
-          <h1 class="text-2xl font-bold text-emerald-900">
-            Service Pricing Management
-          </h1>
-          <div class="flex items-center space-x-4">
-            <button
-              class="p-2 rounded-full hover:bg-emerald-50 transition-all duration-200 relative"
-            >
-              <span class="material-symbols-outlined text-emerald-700"
-                >notifications</span
-              >
-              <span
-                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
-                >5</span
-              >
-            </button>
-            <button
-              class="p-2 rounded-full hover:bg-emerald-50 transition-all duration-200"
-            >
-              <span class="material-symbols-outlined text-emerald-700"
-                >settings</span
-              >
-            </button>
-            <details class="relative">
-              <summary class="list-none flex items-center cursor-pointer">
-                <div
-                  class="w-10 h-10 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 font-bold hover:bg-emerald-300 transition-all duration-200"
-                >
-                  JD
-                </div>
-                <div class="ml-2">
-                  <p class="font-medium text-sm">John Doe</p>
-                  <p class="text-xs text-gray-500">Manager</p>
-                </div>
-                <span class="material-symbols-outlined text-emerald-700 ml-1"
-                  >expand_more</span
-                >
-              </summary>
-              <div
-                class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg z-10 overflow-hidden"
-              >
-                <ul>
-                  <li class="hover:bg-emerald-50 transition-all duration-200">
-                    <a
-                      href="#profile"
-                      class="block px-4 py-2 text-sm text-gray-700"
-                      >Profile</a
-                    >
-                  </li>
-                  <li class="hover:bg-emerald-50 transition-all duration-200">
-                    <a
-                      href="#account"
-                      class="block px-4 py-2 text-sm text-gray-700"
-                      >Account Settings</a
-                    >
-                  </li>
-                  <li
-                    class="hover:bg-emerald-50 transition-all duration-200 border-t"
-                  >
-                    <a
-                      href="#logout"
-                      class="block px-4 py-2 text-sm text-red-600"
-                      >Logout</a
-                    >
-                  </li>
-                </ul>
-              </div>
-            </details>
-          </div>
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-2xl font-bold text-emerald-900">Service Pricing Management</h1>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+      <div class="col-span-1 lg:col-span-2 bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-lg font-bold text-emerald-900">Hospital Services Pricing</h2>
+          <button 
+            @click="openModal" 
+            class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 hover:scale-105 transition-all duration-200 flex items-center">
+            <span class="material-symbols-outlined mr-2 text-sm">add</span>
+            Add Service
+          </button>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div
-            class="col-span-1 lg:col-span-2 bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300"
-          >
-            <div class="flex justify-between items-center mb-6">
-              <h2 class="text-lg font-bold text-emerald-900">
-                Hospital Services Pricing
-              </h2>
-              <button
-                class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 hover:scale-105 transition-all duration-200 flex items-center"
-                id="showAddServiceModal"
-              >
-                <span class="material-symbols-outlined mr-2 text-sm">add</span>
-                Add Service
-              </button>
-            </div>
-            <div class="mb-4 flex justify-between items-center">
-              <div class="relative w-64">
-                <span
-                  class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  >search</span
-                >
-                <input
-                  type="text"
-                  placeholder="Search services..."
-                  class="w-full pl-10 pr-4 py-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                />
-              </div>
-              <details class="relative">
-                <summary
-                  class="list-none cursor-pointer bg-white border border-emerald-200 text-emerald-700 px-3 py-2 rounded-lg hover:bg-emerald-50 transition-all duration-200 flex items-center"
-                >
-                  <span class="material-symbols-outlined mr-1 text-sm"
-                    >filter_alt</span
-                  >
-                  Sort by
-                  <span class="material-symbols-outlined ml-1 text-sm"
-                    >expand_more</span
-                  >
-                </summary>
-                <div
-                  class="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg z-10 overflow-hidden"
-                >
-                  <ul>
-                    <li class="hover:bg-emerald-50 transition-all duration-200">
-                      <button class="w-full text-left px-4 py-2 text-sm">
-                        Name (A-Z)
-                      </button>
-                    </li>
-                    <li class="hover:bg-emerald-50 transition-all duration-200">
-                      <button class="w-full text-left px-4 py-2 text-sm">
-                        Name (Z-A)
-                      </button>
-                    </li>
-                    <li class="hover:bg-emerald-50 transition-all duration-200">
-                      <button class="w-full text-left px-4 py-2 text-sm">
-                        Price (Low to High)
-                      </button>
-                    </li>
-                    <li class="hover:bg-emerald-50 transition-all duration-200">
-                      <button class="w-full text-left px-4 py-2 text-sm">
-                        Price (High to Low)
-                      </button>
-                    </li>
-                    <li class="hover:bg-emerald-50 transition-all duration-200">
-                      <button class="w-full text-left px-4 py-2 text-sm">
-                        Recently Added
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              </details>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-emerald-50">
-                  <tr>
-                    <th class="p-4 text-left text-emerald-700">ID</th>
-                    <th class="p-4 text-left text-emerald-700">Service Name</th>
-                    <th class="p-4 text-left text-emerald-700">Price (ETB)</th>
-                    <th class="p-4 text-left text-emerald-700">Last Updated</th>
-                    <th class="p-4 text-left text-emerald-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
-                  >
-                    <td class="p-4">001</td>
-                    <td class="p-4 font-medium">General Consultation</td>
-                    <td class="p-4">350.00</td>
-                    <td class="p-4 text-sm text-gray-500">Feb 12, 2025</td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-red-500 hover:text-red-700 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
-                  >
-                    <td class="p-4">002</td>
-                    <td class="p-4 font-medium">X-Ray (Single Area)</td>
-                    <td class="p-4">750.00</td>
-                    <td class="p-4 text-sm text-gray-500">Mar 05, 2025</td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-red-500 hover:text-red-700 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
-                  >
-                    <td class="p-4">003</td>
-                    <td class="p-4 font-medium">Blood Test - Complete CBC</td>
-                    <td class="p-4">450.00</td>
-                    <td class="p-4 text-sm text-gray-500">Jan 28, 2025</td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-red-500 hover:text-red-700 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
-                  >
-                    <td class="p-4">004</td>
-                    <td class="p-4 font-medium">Ultrasound Scan</td>
-                    <td class="p-4">1,200.00</td>
-                    <td class="p-4 text-sm text-gray-500">Feb 18, 2025</td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-red-500 hover:text-red-700 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
-                  >
-                    <td class="p-4">005</td>
-                    <td class="p-4 font-medium">Physical Therapy (Session)</td>
-                    <td class="p-4">600.00</td>
-                    <td class="p-4 text-sm text-gray-500">Mar 10, 2025</td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-red-500 hover:text-red-700 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
-                  >
-                    <td class="p-4">006</td>
-                    <td class="p-4 font-medium">Dental Cleaning</td>
-                    <td class="p-4">850.00</td>
-                    <td class="p-4 text-sm text-gray-500">Mar 02, 2025</td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-red-500 hover:text-red-700 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
-                  >
-                    <td class="p-4">007</td>
-                    <td class="p-4 font-medium">Vaccination - Adult</td>
-                    <td class="p-4">400.00</td>
-                    <td class="p-4 text-sm text-gray-500">Jan 15, 2025</td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-red-500 hover:text-red-700 transition-colors duration-200"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="mt-4 flex justify-between items-center">
-              <div class="text-sm text-gray-600">
-                Showing 1-7 of 24 services
-              </div>
-              <div class="flex space-x-1">
-                <button
-                  class="px-3 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  class="px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200"
-                >
-                  1
-                </button>
-                <button
-                  class="px-3 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all duration-200"
-                >
-                  2
-                </button>
-                <button
-                  class="px-3 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all duration-200"
-                >
-                  3
-                </button>
-                <button
-                  class="px-3 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all duration-200"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="col-span-1 space-y-6">
-            <div
-              class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300"
-            >
-              <h2 class="text-lg font-bold text-emerald-900 mb-4">
-                Pricing Overview
-              </h2>
-              <div class="space-y-4">
-                <div
-                  class="flex justify-between items-center pb-2 border-b border-emerald-100"
-                >
-                  <span class="text-gray-600">Total Services</span>
-                  <span class="font-bold text-emerald-700">24</span>
-                </div>
-                <div
-                  class="flex justify-between items-center pb-2 border-b border-emerald-100"
-                >
-                  <span class="text-gray-600">Average Price</span>
-                  <span class="font-bold text-emerald-700">ETB 675.50</span>
-                </div>
-                <div
-                  class="flex justify-between items-center pb-2 border-b border-emerald-100"
-                >
-                  <span class="text-gray-600">Highest Price</span>
-                  <span class="font-bold text-emerald-700">ETB 2,500.00</span>
-                </div>
-                <div
-                  class="flex justify-between items-center pb-2 border-b border-emerald-100"
-                >
-                  <span class="text-gray-600">Lowest Price</span>
-                  <span class="font-bold text-emerald-700">ETB 150.00</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-600">Last Updated</span>
-                  <span class="text-sm text-gray-500">Mar 10, 2025</span>
-                </div>
-              </div>
-            </div>
-            <div
-              class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300"
-            >
-              <h2 class="text-lg font-bold text-emerald-900 mb-4">
-                Price Categories
-              </h2>
-              <div class="space-y-3">
-                <div class="flex items-center">
-                  <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div
-                      class="bg-emerald-600 h-2.5 rounded-full w-[40%]"
-                    ></div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-emerald-50">
+              <tr>
+                <th class="p-4 text-left text-emerald-700">ID</th>
+                <th class="p-4 text-left text-emerald-700">Service Name</th>
+                <th class="p-4 text-left text-emerald-700">Price (ETB)</th>
+                <th class="p-4 text-left text-emerald-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="service in services" 
+                :key="service.id" 
+                class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
+                <td class="p-4">{{ service.id }}</td>
+                <td class="p-4 font-medium">{{ service.service_name }}</td>
+                <td class="p-4">{{ service.price.toFixed(2) }}</td>
+                <td class="p-4">
+                  <div class="flex space-x-2">
+                    <button 
+                      @click="editService(service)" 
+                      class="text-emerald-600 hover:text-emerald-800 transition-colors duration-200">
+                      <span class="material-symbols-outlined">edit</span>
+                    </button>
+                    <button 
+                      @click="deleteService(service.id)" 
+                      class="text-red-500 hover:text-red-700 transition-colors duration-200">
+                      <span class="material-symbols-outlined">delete</span>
+                    </button>
                   </div>
-                  <span class="ml-3 text-sm text-gray-600 w-24"
-                    >Basic (40%)</span
-                  >
-                </div>
-                <div class="flex items-center">
-                  <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div
-                      class="bg-emerald-500 h-2.5 rounded-full w-[30%]"
-                    ></div>
-                  </div>
-                  <span class="ml-3 text-sm text-gray-600 w-24"
-                    >Standard (30%)</span
-                  >
-                </div>
-                <div class="flex items-center">
-                  <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div
-                      class="bg-emerald-400 h-2.5 rounded-full w-[20%]"
-                    ></div>
-                  </div>
-                  <span class="ml-3 text-sm text-gray-600 w-24"
-                    >Premium (20%)</span
-                  >
-                </div>
-                <div class="flex items-center">
-                  <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div
-                      class="bg-emerald-300 h-2.5 rounded-full w-[10%]"
-                    ></div>
-                  </div>
-                  <span class="ml-3 text-sm text-gray-600 w-24"
-                    >Special (10%)</span
-                  >
-                </div>
-              </div>
-              <button
-                class="mt-4 w-full text-emerald-600 text-sm hover:text-emerald-800 transition-all duration-200 flex items-center justify-center"
-              >
-                <span class="material-symbols-outlined mr-1 text-sm"
-                  >analytics</span
-                >
-                View Detailed Report
-              </button>
-            </div>
-            <div
-              class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300"
-            >
-              <h2 class="text-lg font-bold text-emerald-900 mb-4">
-                Quick Actions
-              </h2>
-              <div class="space-y-3">
-                <button
-                  class="w-full bg-emerald-50 text-emerald-700 px-4 py-3 rounded-lg hover:bg-emerald-100 transition-all duration-200 text-left flex items-center"
-                >
-                  <span class="material-symbols-outlined mr-3"
-                    >import_export</span
-                  >
-                  Export Price List
-                </button>
-                <button
-                  class="w-full bg-emerald-50 text-emerald-700 px-4 py-3 rounded-lg hover:bg-emerald-100 transition-all duration-200 text-left flex items-center"
-                >
-                  <span class="material-symbols-outlined mr-3">print</span>
-                  Print Price List
-                </button>
-                <button
-                  class="w-full bg-emerald-50 text-emerald-700 px-4 py-3 rounded-lg hover:bg-emerald-100 transition-all duration-200 text-left flex items-center"
-                >
-                  <span class="material-symbols-outlined mr-3">history</span>
-                  View Price History
-                </button>
-                <button
-                  class="w-full bg-emerald-50 text-emerald-700 px-4 py-3 rounded-lg hover:bg-emerald-100 transition-all duration-200 text-left flex items-center"
-                >
-                  <span class="material-symbols-outlined mr-3"
-                    >compare_arrows</span
-                  >
-                  Compare Pricing
-                </button>
-              </div>
-            </div>
-          </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div
-          class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl p-6 w-[600px] max-h-[80vh] overflow-y-auto z-20 opacity-0 pointer-events-none transition-all duration-300 scale-95"
-          id="addServiceModal"
-        >
-          <div class="flex justify-between items-start mb-6">
-            <h2 class="text-xl font-bold text-emerald-900">Add New Service</h2>
-            <button
-              class="text-gray-500 hover:text-gray-700 transition-colors duration-200"
-            >
-              <span class="material-symbols-outlined">close</span>
-            </button>
+      </div>
+
+      <div class="col-span-1 space-y-6">
+        <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+          <h2 class="text-lg font-bold text-emerald-900 mb-4">Pricing Overview</h2>
+          <div class="space-y-4">
+            <div class="flex justify-between items-center pb-2 border-b border-emerald-100">
+              <span class="text-gray-600">Total Services</span>
+              <span class="font-bold text-emerald-700">{{ services.length }}</span>
+            </div>
+            <div class="flex justify-between items-center pb-2 border-b border-emerald-100">
+              <span class="text-gray-600">Average Price</span>
+              <span class="font-bold text-emerald-700">ETB {{ averagePrice }}</span>
+            </div>
           </div>
-          <form class="space-y-6">
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Service Name*</label
-              >
-              <input
-                type="text"
-                class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                placeholder="Enter service name"
-                required=""
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Price (ETB)*</label
-              >
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                placeholder="0.00"
-                required=""
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Category</label
-              >
-              <select
-                class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-              >
-                <option value="">Select a category</option>
-                <option value="consultation">Consultation</option>
-                <option value="diagnostics">Diagnostics</option>
-                <option value="treatment">Treatment</option>
-                <option value="surgery">Surgery</option>
-                <option value="maternity">Maternity</option>
-                <option value="dental">Dental</option>
-                <option value="wellness">Wellness</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Description</label
-              >
-              <textarea
-                class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                rows="3"
-                placeholder="Enter service description"
-              ></textarea>
-            </div>
-            <div class="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                type="button"
-                class="px-4 py-2 border border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50 transition-all duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200"
-              >
-                Add Service
-              </button>
-            </div>
-          </form>
-        </div>
-        <div
-          class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl p-6 w-[600px] max-h-[80vh] overflow-y-auto z-20 opacity-0 pointer-events-none transition-all duration-300 scale-95"
-          id="editServiceModal"
-        >
-          <div class="flex justify-between items-start mb-6">
-            <h2 class="text-xl font-bold text-emerald-900">Edit Service</h2>
-            <button
-              class="text-gray-500 hover:text-gray-700 transition-colors duration-200"
-            >
-              <span class="material-symbols-outlined">close</span>
-            </button>
-          </div>
-          <form class="space-y-6">
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Service ID</label
-              >
-              <input
-                type="text"
-                class="w-full p-2 border border-emerald-200 rounded-lg bg-gray-50"
-                disabled=""
-                value="002"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Service Name*</label
-              >
-              <input
-                type="text"
-                class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                required=""
-                value="X-Ray (Single Area)"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Price (ETB)*</label
-              >
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                required=""
-                value="750.00"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Category</label
-              >
-              <select
-                class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-              >
-                <option value="">Select a category</option>
-                <option value="consultation">Consultation</option>
-                <option value="diagnostics" selected="">Diagnostics</option>
-                <option value="treatment">Treatment</option>
-                <option value="surgery">Surgery</option>
-                <option value="maternity">Maternity</option>
-                <option value="dental">Dental</option>
-                <option value="wellness">Wellness</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-emerald-700 mb-1"
-                >Description</label
-              >
-            </div>
-          </form>
         </div>
       </div>
     </div>
-  </div></template
->
+
+    <!-- Modal for Adding or Editing Service -->
+    <div 
+      v-if="isModalOpen"
+      class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+      <div class="bg-white rounded-xl shadow-2xl p-6 w-[500px]">
+        <div class="flex justify-between items-start mb-6">
+          <h2 class="text-xl font-bold text-emerald-900">{{ editMode ? 'Edit Service' : 'Add New Service' }}</h2>
+          <button @click="closeModal" class="text-gray-500 hover:text-gray-700 transition-colors duration-200">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <form @submit.prevent="saveService">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-emerald-700 mb-1">Service Name*</label>
+            <input v-model="newService.service_name" type="text" required
+              class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all duration-200" 
+              placeholder="Enter service name" />
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-emerald-700 mb-1">Price (ETB)*</label>
+            <input v-model="newService.price" type="number" step="0.01" min="0" required
+              class="w-full p-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 transition-all duration-200"
+              placeholder="0.00" />
+          </div>
+          <div class="flex justify-end space-x-3 pt-4 border-t">
+            <button @click="closeModal" type="button" 
+              class="px-4 py-2 border border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50 transition-all duration-200">
+              Cancel
+            </button>
+            <button type="submit" 
+              class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200">
+              {{ editMode ? 'Update' : 'Add Service' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+    </div>
+  </div>
+</template>
 
 <style scoped>
   @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);
