@@ -1,3 +1,73 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRuntimeConfig } from '#imports';
+
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+// Auth headers
+const authHeaders = {
+  headers: {
+    Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+    'Content-Type': 'application/json',
+  },
+};
+
+// State
+const appointments = ref([]);
+const labForm = ref({
+  patient_id: '',
+  test_name: '',
+  notes: '',
+});
+
+// Fetch appointments for logged-in doctor
+const fetchAppointments = async () => {
+  try {
+    const response = await fetch(`${apiBase}/api/appointments`, authHeaders);
+    if (!response.ok) throw new Error('Failed to fetch appointments');
+    const data = await response.json();
+    appointments.value = data;
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+  }
+};
+
+// Submit lab test order
+const submitLabOrder = async () => {
+  try {
+    const payload = {
+      patient_id: parseInt(labForm.value.patient_id),
+      test_name: labForm.value.test_name,
+      notes: labForm.value.notes,
+    };
+
+    const response = await fetch(`${apiBase}/api/lab/order`, {
+      method: 'POST',
+      headers: authHeaders.headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) throw new Error('Lab test order failed');
+    const result = await response.json();
+    alert('Lab order submitted successfully!');
+    // Reset form
+    labForm.value = { patient_id: '', test_name: '', notes: '' };
+  } catch (error) {
+    console.error('Error submitting lab order:', error);
+    alert('Failed to submit lab order');
+  }
+};
+
+const editAppointment = (appointment) => {
+  alert(`Edit appointment #${appointment.id} - this will trigger a modal/form in real use.`);
+};
+
+onMounted(() => {
+  fetchAppointments();
+});
+</script>
+
 <template
   ><div id="webcrumbs">
     <div class="w-[1280px] flex font-sans">
@@ -7,27 +77,7 @@
         <nav class="space-y-4">
           <div class="text-white text-xl font-bold mb-8">Doctor Dashboard</div>
           <a
-            href="/doctor/appointments"
-            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
-          >
-            <span
-              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
-              >event</span
-            >
-            Appointments
-          </a>
-          <a
-            href="/doctor/lab-tests"
-            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
-          >
-            <span
-              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
-              >science</span
-            >
-            Lab Tests
-          </a>
-          <a
-            href="/doctor/prescriptions"
+            href="staff/doctor/prescriptions"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -37,7 +87,7 @@
             Prescriptions
           </a>
           <a
-            href="/doctor/referrals"
+            href="staff/doctor/referrals"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -47,21 +97,17 @@
             Patient Referrals
           </a>
           <a
-            href="/doctor/chat"
+            href="staff/doctor/chat"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
               class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
               >chat</span
             >
-            Real-Time Chat
-            <span
-              class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full group-hover:bg-emerald-500 transition-colors"
-              >1</span
-            >
+            Chat
           </a>
           <a
-            href="/doctor/notifications"
+            href="staff/doctor/notifications"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -71,7 +117,7 @@
             Notifications
           </a>
           <a
-            href="/doctor/inbox"
+            href="staff/doctor/inbox"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -81,7 +127,7 @@
             Inbox
           </a>
           <a
-            href="/doctor/attendance"
+            href="staff/doctor/attendance"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -100,62 +146,24 @@
       <main class="flex-1 p-6 bg-emerald-50 min-h-screen">
         <header class="mb-6">
           <div class="flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-emerald-900">
-              Welcome, Dr. Johnson
-            </h1>
-            <div class="flex items-center space-x-4">
-              <button
-                class="bg-white p-2 rounded-full shadow-md hover:shadow-lg transition-shadow"
-              >
-                <span class="material-symbols-outlined text-emerald-700"
-                  >search</span
-                >
-              </button>
-              <button
-                class="relative bg-white p-2 rounded-full shadow-md hover:shadow-lg transition-shadow"
-              >
-                <span class="material-symbols-outlined text-emerald-700"
-                  >notifications</span
-                >
-                <span
-                  class="absolute top-0 right-0 h-3 w-3 bg-red-500 rounded-full"
-                ></span>
-              </button>
-              <div
-                class="flex items-center space-x-2 bg-white p-2 rounded-full shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-              >
-                <img
-                  src="https://randomuser.me/api/portraits/men/1.jpg"
-                  alt="Profile"
-                  class="w-8 h-8 rounded-full"
-                />
-                <span class="material-symbols-outlined text-emerald-700"
-                  >expand_more</span
-                >
-              </div>
-            </div>
+            <h1 class="text-2xl font-bold text-emerald-900">Welcome, Dr. Johnson</h1>
           </div>
         </header>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Appointments Section -->
           <div class="lg:col-span-3">
-            <div
-              class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
-            >
-              <div
-                class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl flex justify-between items-center"
-              >
-                <h3 class="text-xl font-bold text-emerald-900">
-                  Today&#x27;s Appointments
-                </h3>
+            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
+              <div class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl flex justify-between items-center">
+                <h3 class="text-xl font-bold text-emerald-900">Today's Appointments</h3>
                 <button
                   class="bg-emerald-600 text-white px-4 py-2 rounded-full hover:bg-emerald-700 transition-colors flex items-center"
                 >
-                  <span class="material-symbols-outlined align-middle mr-2"
-                    >add</span
-                  >
+                  <span class="material-symbols-outlined align-middle mr-2">add</span>
                   New Appointment
                 </button>
               </div>
+
               <div class="overflow-x-auto mt-6">
                 <table class="w-full">
                   <thead class="bg-emerald-50">
@@ -169,81 +177,35 @@
                   </thead>
                   <tbody>
                     <tr
+                      v-for="appointment in appointments"
+                      :key="appointment.id"
                       class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
                     >
                       <td class="p-4 flex items-center space-x-2">
                         <img
-                          src="https://randomuser.me/api/portraits/women/2.jpg"
+                          src="https://randomuser.me/api/portraits/lego/1.jpg"
                           alt="Patient"
                           class="w-8 h-8 rounded-full"
                         />
-                        <span>Patient 1001</span>
+                        <span>{{ appointment.patient || 'Patient #' + appointment.id }}</span>
                       </td>
-                      <td class="p-4">09:00 AM</td>
-                      <td class="p-4">Annual Checkup</td>
+                      <td class="p-4">{{ appointment.time }}</td>
+                      <td class="p-4">{{ appointment.reason }}</td>
                       <td class="p-4">
-                        <span
-                          class="px-3 py-1 rounded-full bg-amber-100 text-amber-800"
-                          >Pending</span
+                        <span class="px-3 py-1 rounded-full"
+                          :class="{
+                            'bg-amber-100 text-amber-800': appointment.status === 'Pending',
+                            'bg-emerald-100 text-emerald-800': appointment.status === 'Completed',
+                            'bg-red-100 text-red-800': appointment.status === 'Urgent',
+                          }"
                         >
+                          {{ appointment.status }}
+                        </span>
                       </td>
                       <td class="p-4">
                         <button
                           class="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-100 rounded-full transition-colors"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr
-                      class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                    >
-                      <td class="p-4 flex items-center space-x-2">
-                        <img
-                          src="https://randomuser.me/api/portraits/men/3.jpg"
-                          alt="Patient"
-                          class="w-8 h-8 rounded-full"
-                        />
-                        <span>Patient 1002</span>
-                      </td>
-                      <td class="p-4">10:30 AM</td>
-                      <td class="p-4">Diabetes Follow-up</td>
-                      <td class="p-4">
-                        <span
-                          class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800"
-                          >Completed</span
-                        >
-                      </td>
-                      <td class="p-4">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-100 rounded-full transition-colors"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                      </td>
-                    </tr>
-                    <tr
-                      class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                    >
-                      <td class="p-4 flex items-center space-x-2">
-                        <img
-                          src="https://randomuser.me/api/portraits/women/4.jpg"
-                          alt="Patient"
-                          class="w-8 h-8 rounded-full"
-                        />
-                        <span>Patient 1003</span>
-                      </td>
-                      <td class="p-4">11:45 AM</td>
-                      <td class="p-4">Chest Pain</td>
-                      <td class="p-4">
-                        <span
-                          class="px-3 py-1 rounded-full bg-red-100 text-red-800"
-                          >Urgent</span
-                        >
-                      </td>
-                      <td class="p-4">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-100 rounded-full transition-colors"
+                          @click="editAppointment(appointment)"
                         >
                           <span class="material-symbols-outlined">edit</span>
                         </button>
@@ -254,40 +216,44 @@
               </div>
             </div>
           </div>
+
+          <!-- Lab Test Order Section -->
           <div class="lg:col-span-2">
-            <div
-              class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
-            >
-              <div
-                class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl"
-              >
-                <h3 class="text-xl font-bold text-emerald-900">
-                  Order Lab Test
-                </h3>
+            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
+              <div class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl">
+                <h3 class="text-xl font-bold text-emerald-900">Order Lab Test</h3>
               </div>
+
               <div class="mt-6 grid grid-cols-2 gap-4">
                 <div>
                   <label class="block text-emerald-700 mb-2">Patient ID</label>
                   <input
                     type="number"
+                    v-model="labForm.patient_id"
                     class="border border-emerald-200 rounded-lg w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                   />
                 </div>
+
                 <div>
                   <label class="block text-emerald-700 mb-2">Test Name</label>
                   <input
                     type="text"
+                    v-model="labForm.test_name"
                     class="border border-emerald-200 rounded-lg w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                   />
                 </div>
+
                 <div class="col-span-2">
                   <label class="block text-emerald-700 mb-2">Notes</label>
                   <textarea
+                    v-model="labForm.notes"
                     class="border border-emerald-200 rounded-lg w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                     rows="3"
                   ></textarea>
                 </div>
+
                 <button
+                  @click="submitLabOrder"
                   class="col-span-2 bg-emerald-600 text-white px-6 py-3 rounded-full hover:bg-emerald-700 transition-colors flex items-center justify-center mt-2"
                 >
                   <span class="material-symbols-outlined mr-2">send</span>
@@ -296,157 +262,11 @@
               </div>
             </div>
           </div>
-          <div>
-            <div
-              class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
-            >
-              <div
-                class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl"
-              >
-                <h3 class="text-xl font-bold text-emerald-900">At a Glance</h3>
-              </div>
-              <div class="mt-6 space-y-4">
-                <div
-                  class="flex justify-between items-center p-3 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
-                >
-                  <div class="flex items-center">
-                    <span
-                      class="material-symbols-outlined text-emerald-600 p-2 bg-white rounded-full mr-3"
-                      >people</span
-                    >
-                    <span>Patients Today</span>
-                  </div>
-                  <span class="font-bold text-lg">12</span>
-                </div>
-                <div
-                  class="flex justify-between items-center p-3 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
-                >
-                  <div class="flex items-center">
-                    <span
-                      class="material-symbols-outlined text-amber-600 p-2 bg-white rounded-full mr-3"
-                      >science</span
-                    >
-                    <span>Lab Results Pending</span>
-                  </div>
-                  <span class="font-bold text-lg">5</span>
-                </div>
-                <div
-                  class="flex justify-between items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  <div class="flex items-center">
-                    <span
-                      class="material-symbols-outlined text-blue-600 p-2 bg-white rounded-full mr-3"
-                      >inbox</span
-                    >
-                    <span>Unread Messages</span>
-                  </div>
-                  <span class="font-bold text-lg">3</span>
-                </div>
-                <div
-                  class="flex justify-between items-center p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                >
-                  <div class="flex items-center">
-                    <span
-                      class="material-symbols-outlined text-red-600 p-2 bg-white rounded-full mr-3"
-                      >warning</span
-                    >
-                    <span>Urgent Cases</span>
-                  </div>
-                  <span class="font-bold text-lg">1</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="lg:col-span-3">
-            <div
-              class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow h-[600px] flex flex-col"
-            >
-              <div
-                class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl flex justify-between items-center"
-              >
-                <h3 class="text-xl font-bold text-emerald-900">Patient Chat</h3>
-                <div
-                  class="flex items-center bg-white rounded-full px-3 py-1 shadow"
-                >
-                  <img
-                    src="https://randomuser.me/api/portraits/women/4.jpg"
-                    alt="Patient"
-                    class="w-8 h-8 rounded-full mr-2"
-                  />
-                  <span class="font-medium">Patient 1003</span>
-                  <span class="ml-2 h-2 w-2 bg-green-500 rounded-full"></span>
-                </div>
-              </div>
-              <div class="flex-1 overflow-y-auto p-4 space-y-4">
-                <div class="flex">
-                  <div class="p-4 rounded-xl max-w-[70%] bg-gray-100">
-                    <p>
-                      Good morning doctor, I&#x27;m still experiencing chest
-                      pain despite the medication you prescribed yesterday.
-                    </p>
-                    <p class="text-xs text-gray-600 mt-2">09:15 AM</p>
-                  </div>
-                </div>
-                <div class="flex justify-end">
-                  <div class="p-4 rounded-xl max-w-[70%] bg-emerald-100">
-                    <p>
-                      I&#x27;m sorry to hear that. Could you rate the pain on a
-                      scale of 1-10 and describe if it&#x27;s constant or comes
-                      and goes?
-                    </p>
-                    <p class="text-xs text-emerald-600 mt-2">09:18 AM</p>
-                  </div>
-                </div>
-                <div class="flex">
-                  <div class="p-4 rounded-xl max-w-[70%] bg-gray-100">
-                    <p>
-                      It&#x27;s about a 7 out of 10, and it&#x27;s constant but
-                      gets worse when I try to take a deep breath or lie down.
-                    </p>
-                    <p class="text-xs text-gray-600 mt-2">09:20 AM</p>
-                  </div>
-                </div>
-                <div class="flex justify-end">
-                  <div class="p-4 rounded-xl max-w-[70%] bg-emerald-100">
-                    <p>
-                      Given these symptoms, I&#x27;d like you to come in right
-                      away. I&#x27;ve marked your case as urgent and will see
-                      you as soon as you arrive.
-                    </p>
-                    <p class="text-xs text-emerald-600 mt-2">09:22 AM</p>
-                  </div>
-                </div>
-                <div class="flex">
-                  <div class="p-4 rounded-xl max-w-[70%] bg-gray-100">
-                    <p>
-                      Thank you, doctor. I&#x27;ll be there in about 30 minutes.
-                    </p>
-                    <p class="text-xs text-gray-600 mt-2">09:24 AM</p>
-                  </div>
-                </div>
-              </div>
-              <div class="border-t border-emerald-100 pt-4">
-                <div class="flex gap-4">
-                  <input
-                    type="text"
-                    class="border border-emerald-200 rounded-lg flex-1 p-3 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                    placeholder="Type your message..."
-                  />
-                  <button
-                    class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-colors flex items-center"
-                  >
-                    <span class="material-symbols-outlined mr-2">send</span>
-                    Send
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
     </div>
-  </div></template
->
+  </div>
+</template>
 
 <style scoped>
   @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);

@@ -40,56 +40,78 @@ const markAttendance = async () => {
     <div class="h-[1080px]">
       <div class="flex h-full">
         <!-- Sidebar -->
-        <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
-          <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Record Officer Dashboard</div>
-            <a
-              href="/staff/record_officer/patient_registrar"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+        <aside
+        class="w-64 bg-emerald-900 p-6 flex flex-col justify-between h-screen sticky top-0"
+      >
+        <nav class="space-y-4">
+          <div class="text-white text-xl font-bold mb-8">Doctor Dashboard</div>
+          <a
+            href="staff/doctor/prescriptions"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+          >
+            <span
+              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+              >medication</span
             >
-              <span class="material-symbols-outlined mr-2">person_add</span>
-              Pending Registrations
-            </a>
-            <a
-              href="/staff/record_officer/patient_record"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+            Prescriptions
+          </a>
+          <a
+            href="staff/doctor/referrals"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+          >
+            <span
+              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+              >transfer_within_a_station</span
             >
-              <span class="material-symbols-outlined mr-2">folder_supervised</span>
-              Patient Records
-            </a>
-            <a
-              href="/staff/record_officer/notifications"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+            Patient Referrals
+          </a>
+          <a
+            href="staff/doctor/chat"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+          >
+            <span
+              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+              >chat</span
             >
-              <span class="material-symbols-outlined mr-2">notifications</span>
-              Notifications
-            </a>
-            <a
-              href="/staff/record_officer/inbox"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+            Chat
+          </a>
+          <a
+            href="staff/doctor/notifications"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+          >
+            <span
+              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+              >notifications</span
             >
-              <span class="material-symbols-outlined mr-2">inbox</span>
-              Inbox
-            </a>
-            <a
-              href="/staff/record_officer/attendance"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+            Notifications
+          </a>
+          <a
+            href="staff/doctor/inbox"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+          >
+            <span
+              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+              >inbox</span
             >
-              <span class="material-symbols-outlined mr-2">schedule</span>
-              Attendance
-            </a>
-            <a
-              href="/staff/record_officer/assignroom"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+            Inbox
+          </a>
+          <a
+            href="staff/doctor/attendance"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+          >
+            <span
+              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+              >schedule</span
             >
-              <span class="material-symbols-outlined mr-2">meeting_room</span>
-              Assign Room
-            </a>
-          </nav>
-          <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
-            © 2025 Assosa General Hospital. All rights reserved.
-          </div>
-        </aside>
+            Attendance
+          </a>
+        </nav>
+        <div
+          class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"
+        >
+          © 2025 Assosa General Hospital. All rights reserved.
+        </div>
+      </aside>
 
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
         <div class="space-y-6">
