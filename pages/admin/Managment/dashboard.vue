@@ -2,38 +2,124 @@
 import { ref, onMounted } from 'vue';
 import { useRuntimeConfig } from '#imports';
 
+const route = useRoute();
+
+const navItems = [
+  { path: '/admin/Managment/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { path: '/admin/Managment/attendance', label: 'Attendance', icon: 'calendar_month' },
+  { path: '/admin/Managment/employee', label: 'Employees', icon: 'group' },
+  { path: '/admin/Managment/feedback', label: 'Feedback', icon: 'forum' },
+  { path: '/admin/Managment/pricing', label: 'Pricing', icon: 'sell' },
+  { path: '/admin/Managment/chat', label: 'Messages', icon: 'inbox' },
+];
+
+// Function to get cookie value
+const getCookie = (name) => {
+  console.log('Reading cookies...');
+  const value = `; ${document.cookie}`;
+  console.log('Full cookie string:', value);
+
+  const parts = value.split(`; ${name}=`);
+  console.log(`Split parts for "${name}":`, parts);
+
+  if (parts.length === 2) {
+    const cookieValue = parts.pop().split(';').shift();
+    console.log(`Found cookie "${name}":`, cookieValue);
+    return cookieValue;
+  }
+
+  console.warn(`Cookie "${name}" not found.`);
+  return null;
+};
+
+
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
 
 // Data refs
 const activePatients = ref(0);
-const unreadNotifications = ref(0);
+const employeeCount = ref(0);
 const totalRevenue = ref(0);
 const pendingPayments = ref(0);
-const chartSrc = ref(''); // Base64 chart image
+const chartSrc = ref('');
 
-// Auth headers
-const authHeaders = {
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-  },
+// Function to build auth headers dynamically
+const getAuthHeaders = () => {
+  const token = typeof window !== 'undefined' ? getCookie('access_token') : null;
+  return token
+    ? {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    : {};
 };
 
 // Fetch system overview
 const fetchSystemOverview = async () => {
   try {
-    const response = await $fetch(`${apiBase}/Managment/system/overview`, authHeaders);
+    const response = await $fetch(`${apiBase}/Managment/system/overview`, {
+      ...getAuthHeaders(),
+    });
     activePatients.value = response.active_patients;
-    unreadNotifications.value = response.unread_notifications;
+    employeeCount.value = response.employee_count;
   } catch (error) {
     console.error('Failed to fetch system overview:', error);
+  }
+};
+
+const exportCSV = async () => {
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  try {
+    const response = await $fetch(`${apiBase}/Managment/export/csv?report_type=financial`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    // Trigger file download
+    const link = document.createElement('a');
+    link.href = response.csv_file;
+    link.download = 'report.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error('CSV Export Error:', error);
+  }
+};
+
+const exportPDF = async () => {
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  try {
+    const response = await $fetch(`${apiBase}/Managment/export/pdf?report_type=financial`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    // Trigger PDF download
+    const link = document.createElement('a');
+    link.href = response; // Assuming API returns direct link to PDF
+    link.download = 'report.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error('PDF Export Error:', error);
   }
 };
 
 // Fetch financial summary
 const fetchFinancialSummary = async () => {
   try {
-    const response = await $fetch(`${apiBase}/Managment/financial/summary`, authHeaders);
+    const response = await $fetch(`${apiBase}/Managment/financial/summary`, {
+      ...getAuthHeaders(),
+    });
     totalRevenue.value = response.total_revenue;
     pendingPayments.value = response.pending_payments;
   } catch (error) {
@@ -44,10 +130,38 @@ const fetchFinancialSummary = async () => {
 // Fetch most-used services chart
 const fetchMostUsedServicesChart = async () => {
   try {
-    const response = await $fetch(`${apiBase}/Managment/system/most-used-services-chart`, authHeaders);
+    const response = await $fetch(`${apiBase}/Managment/system/most-used-services-chart`, {
+      ...getAuthHeaders(),
+    });
     chartSrc.value = response.chart;
   } catch (error) {
     console.error('Failed to fetch chart:', error);
+  }
+};
+const handleLogout = async () => {
+  try {
+    const refreshToken = getCookie('refresh_token'); // Read refresh_token from cookies
+    if (!refreshToken) {
+      console.warn('No refresh token found in cookies.');
+      window.location.href = '/admin/login'; // Fallback to login
+      return;
+    }
+
+    await $fetch(`${apiBase}/user/logout/`, {
+      method: 'POST',
+      body: { refresh_token: refreshToken },
+      ...getAuthHeaders(),
+    });
+
+    // Clear cookies (optional: depends if backend does it too)
+    document.cookie = 'access_token=; Max-Age=0; path=/';
+    document.cookie = 'refresh_token=; Max-Age=0; path=/';
+
+    // Redirect to login page
+    window.location.href = '/admin/login';
+  } catch (error) {
+    console.error('Logout failed:', error);
+    alert('Logout failed. Please try again.');
   }
 };
 
@@ -71,61 +185,29 @@ onMounted(() => {
           </div>
           <nav class="py-4">
             <ul>
-              <li class="mb-1">
+              <li class="mb-1" v-for="item in navItems" :key="item.path">
                 <a
-                  href="/admin/Managment/dashboard"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+                  :href="item.path"
+                  :class="[
+                    'flex items-center px-4 py-3 transition-all duration-200',
+                    route.path === item.path
+                      ? 'text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600'
+                      : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-900'
+                  ]"
                 >
-                  <span class="material-symbols-outlined mr-3">dashboard</span>
-                  Dashboard
+                  <span class="material-symbols-outlined mr-3">{{ item.icon }}</span>
+                  {{ item.label }}
                 </a>
               </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/attendance"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+
+              <li class="mt-6">
+                <button 
+                  @click="handleLogout"
+                  class="flex items-center w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200"
                 >
-                  <span class="material-symbols-outlined mr-3"
-                    >calendar_month</span
-                  >
-                  Attendance
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/employee"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">group</span>
-                  Employees
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/feedback"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">forum</span>
-                  Feedback
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/pricing"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">sell</span>
-                  Pricing
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/chat"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">inbox</span>
-                  Messages
-                </a>
+                  <span class="material-symbols-outlined mr-3">logout</span>
+                  Logout
+                </button>
               </li>
             </ul>
           </nav>
@@ -139,33 +221,35 @@ onMounted(() => {
       <div class="ml-64 p-8 w-full">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-2xl font-bold text-emerald-900">Manager Dashboard</h1>
-      <div class="flex items-center space-x-4">
+      <!--<div class="flex items-center space-x-4">
         <details class="relative">
           <summary class="list-none flex items-center cursor-pointer">
             <div class="w-10 h-10 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 font-bold hover:bg-emerald-300 transition-all duration-200">
-              JD
+              EX
             </div>
             <div class="ml-2">
-              <p class="font-medium text-sm">John Doe</p>
-              <p class="text-xs text-gray-500">Manager</p>
+              <p class="font-medium text-sm">Export</p>
+              <p class="text-xs text-gray-500">Reports</p>
             </div>
             <span class="material-symbols-outlined text-emerald-700 ml-1">expand_more</span>
           </summary>
           <div class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg z-10 overflow-hidden">
             <ul>
               <li class="hover:bg-emerald-50 transition-all duration-200">
-                <a href="#profile" class="block px-4 py-2 text-sm text-gray-700">Profile</a>
-              </li>
-              <li class="hover:bg-emerald-50 transition-all duration-200">
-                <a href="#account" class="block px-4 py-2 text-sm text-gray-700">Account Settings</a>
+                <button @click="exportCSV" class="w-full text-left block px-4 py-2 text-sm text-gray-700">
+                  Export in CSV
+                </button>
               </li>
               <li class="hover:bg-emerald-50 transition-all duration-200 border-t">
-                <a href="#logout" class="block px-4 py-2 text-sm text-red-600">Logout</a>
+                <button @click="exportPDF" class="w-full text-left block px-4 py-2 text-sm text-gray-700">
+                  Export in PDF
+                </button>
               </li>
             </ul>
           </div>
         </details>
-      </div>
+      </div> 
+    -->
     </div>
 
     <div class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-xl mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -175,10 +259,10 @@ onMounted(() => {
         <p class="text-2xl font-bold text-emerald-900">{{ activePatients }}</p>
       </div>
 
-      <!-- Unread Notifications -->
+      <!-- Total Employees -->
       <div class="bg-white p-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-        <h3 class="text-emerald-700 font-semibold">Unread Notifications</h3>
-        <p class="text-2xl font-bold text-emerald-900">{{ unreadNotifications }}</p>
+        <h3 class="text-emerald-700 font-semibold">Total Employees</h3>
+        <p class="text-2xl font-bold text-emerald-900">{{ employeeCount }}</p>
       </div>
 
       <!-- Pending Payments -->

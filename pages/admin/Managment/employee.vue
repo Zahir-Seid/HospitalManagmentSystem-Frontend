@@ -1,25 +1,78 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRuntimeConfig } from '#imports';
+import { useAuth } from '~/composables/useAuth' 
+const { handleLogout } = useAuth()
+const route = useRoute();
 
+const navItems = [
+  { path: '/admin/Managment/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { path: '/admin/Managment/attendance', label: 'Attendance', icon: 'calendar_month' },
+  { path: '/admin/Managment/employee', label: 'Employees', icon: 'group' },
+  { path: '/admin/Managment/feedback', label: 'Feedback', icon: 'forum' },
+  { path: '/admin/Managment/pricing', label: 'Pricing', icon: 'sell' },
+  { path: '/admin/Managment/chat', label: 'Messages', icon: 'inbox' },
+];
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
+// Handle profile picture selection
+const handleFileChange = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    profilePicture.value = file;
+  }
+};
+
+const profilePicture = ref(null);
 const config = useRuntimeConfig();
-const apiBase = config.public.API_BASE;  // API Base URL
+const apiBase = config.public.API_BASE;
 
 // Data refs
 const employees = ref([]);
-const roles = ref([]);
+const roles = ref(['doctor', 'pharmacist', 'lab_technician', 'cashier', 'record_officer']);
 const loading = ref(true);
-const authHeaders = {
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem('access_token')}`,  // Get the token from local storage
-  },
-};
+const showEmployeeForm = ref(false); // New ref to control form visibility
+
+// New employee form data
+const newEmployee = ref({
+  first_name: '',
+  middle_name: '',
+  last_name: '',
+  phone_number: '',
+  gender: 'male',
+  date_of_birth: '',
+  address: '',
+  ssn: '',
+  profile_picture: '',
+  email: '',
+  username: '',
+  password: '',
+  role: 'doctor',
+  department: '',
+  level: '',
+});
+
+// Get tokens from cookies
+const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+const authHeaders = accessToken
+  ? {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  : {};
 
 // Function to fetch employees by role
 const fetchEmployees = async (role = '') => {
   try {
     loading.value = true;
-    const response = await $fetch(`${apiBase}/api/Managment/employees/`, {
+    const response = await $fetch(`${apiBase}/Managment/employees/`, {
       ...authHeaders,
       params: role ? { role } : {},
     });
@@ -31,24 +84,64 @@ const fetchEmployees = async (role = '') => {
   }
 };
 
-// Function to add a new employee
-const addEmployee = async (employeeData) => {
+// Function to add a new employee using FormData
+const addEmployee = async () => {
   try {
-    const response = await $fetch(`${apiBase}/api/user/create-employee/`, {
+    const formData = new FormData();
+
+    // Append form fields to FormData
+    for (const key in newEmployee.value) {
+      if (key === 'profile_picture' && profilePicture.value) {
+        formData.append(key, profilePicture.value);
+      } else {
+        formData.append(key, newEmployee.value[key]);
+      }
+    }
+
+    const response = await $fetch(`${apiBase}/user/create-employee/`, {
       method: 'POST',
-      ...authHeaders,
-      body: JSON.stringify(employeeData),
+      body: formData, // send as multipart/form-data
+      headers: {
+        Authorization: `Bearer ${accessToken}`, // Don't set Content-Type, browser handles it
+      },
     });
-    employees.value.push(response); // Add the newly created employee to the list
+
+    employees.value.push(response);
     alert('Employee added successfully!');
+    
+    // Reset form
+    newEmployee.value = {
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      phone_number: '',
+      gender: 'male',
+      date_of_birth: '',
+      address: '',
+      ssn: '',
+      profile_picture: '',
+      email: '',
+      username: '',
+      password: '',
+      role: 'doctor',
+      department: '',
+      level: '',
+    };
+    profilePicture.value = null;
+    showEmployeeForm.value = false;
   } catch (error) {
     console.error('Failed to add employee:', error);
   }
 };
 
+// Toggle form visibility
+const toggleEmployeeForm = () => {
+  showEmployeeForm.value = !showEmployeeForm.value;
+};
+
 // Fetch employee data on mount
 onMounted(() => {
-  fetchEmployees(); // Initial fetch of all employees
+  fetchEmployees();
 });
 </script>
 
@@ -64,61 +157,29 @@ onMounted(() => {
           </div>
           <nav class="py-4">
             <ul>
-              <li class="mb-1">
+              <li class="mb-1" v-for="item in navItems" :key="item.path">
                 <a
-                  href="/admin/Managment/dashboard"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+                  :href="item.path"
+                  :class="[
+                    'flex items-center px-4 py-3 transition-all duration-200',
+                    route.path === item.path
+                      ? 'text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600'
+                      : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-900'
+                  ]"
                 >
-                  <span class="material-symbols-outlined mr-3">dashboard</span>
-                  Dashboard
+                  <span class="material-symbols-outlined mr-3">{{ item.icon }}</span>
+                  {{ item.label }}
                 </a>
               </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/attendance"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+
+              <li class="mt-6">
+                <button 
+                  @click="handleLogout"
+                  class="flex items-center w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200"
                 >
-                  <span class="material-symbols-outlined mr-3"
-                    >calendar_month</span
-                  >
-                  Attendance
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/employee"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">group</span>
-                  Employees
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/feedback"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">forum</span>
-                  Feedback
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/pricing"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">sell</span>
-                  Pricing
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/chat"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">inbox</span>
-                  Messages
-                </a>
+                  <span class="material-symbols-outlined mr-3">logout</span>
+                  Logout
+                </button>
               </li>
             </ul>
           </nav>
@@ -132,6 +193,12 @@ onMounted(() => {
       <div class="flex-1 p-8">
     <div class="flex justify-between items-center mb-8">
       <h1 class="text-2xl font-bold text-emerald-900">Employee Management</h1>
+      <button
+            class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
+            @click="toggleEmployeeForm"
+          >
+            {{ showEmployeeForm ? 'Cancel' : 'Add Employee' }}
+          </button>
     </div>
     <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
       <!-- Filter by Role -->
@@ -203,18 +270,110 @@ onMounted(() => {
           </tbody>
         </table>
       </div>
+      <div v-if="showEmployeeForm" class="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <h2 class="text-xl font-semibold text-emerald-700 mb-4">Add New Employee</h2>
+          
+          <!-- Employee Form -->
+          <form @submit.prevent="addEmployee">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+                <input v-model="newEmployee.first_name" id="first_name" type="text" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="middle_name" class="block text-sm font-medium text-gray-700">Middle Name</label>
+                <input v-model="newEmployee.middle_name" id="middle_name" type="text" class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                <input v-model="newEmployee.last_name" id="last_name" type="text" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="phone_number" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                <input v-model="newEmployee.phone_number" id="phone_number" type="text" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="gender" class="block text-sm font-medium text-gray-700">Gender</label>
+                <select v-model="newEmployee.gender" id="gender" required class="mt-1 w-full p-2 border rounded">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label for="date_of_birth" class="block text-sm font-medium text-gray-700">Date of Birth</label>
+                <input v-model="newEmployee.date_of_birth" id="date_of_birth" type="date" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                <input v-model="newEmployee.address" id="address" type="text" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="ssn" class="block text-sm font-medium text-gray-700">SSN</label>
+                <input v-model="newEmployee.ssn" id="ssn" type="text" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">Profile Picture</label>
+                <input type="file" @change="handleFileChange" accept="image/*" 
+                  class="w-full p-2 rounded-lg bg-emerald-50 border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+              <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                <input v-model="newEmployee.email" id="email" type="email" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                <input v-model="newEmployee.username" id="username" type="text" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                <input v-model="newEmployee.password" id="password" type="password" required class="mt-1 w-full p-2 border rounded" />
+              </div>
+              <div>
+                <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+                <select v-model="newEmployee.role" id="role" required class="mt-1 w-full p-2 border rounded">
+                  <option v-for="role in roles" :key="role" :value="role">{{ role }}</option>
+                </select>
+              </div>
+              <!-- Show these ONLY if role is 'doctor' -->
+              <div v-if="newEmployee.role === 'doctor'" class="mt-4">
+                <div class="mb-4">
+                  <label for="department" class="block text-sm font-medium text-gray-700">Department</label>
+                  <input 
+                    v-model="newEmployee.department" 
+                    type="text" 
+                    id="department" 
+                    required 
+                    class="mt-1 w-full p-2 border rounded"
+                  />
+                </div>
+                
+                <div>
+                  <label for="level" class="block text-sm font-medium text-gray-700">Level</label>
+                  <input 
+                    v-model="newEmployee.level" 
+                    type="text" 
+                    id="level" 
+                    required 
+                    class="mt-1 w-full p-2 border rounded"
+                  />
+                </div>
+              </div>
+            </div>
 
-      <!-- Add Employee Button -->
-      <div class="mt-4 flex justify-between items-center">
-        <button
-          class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
-          @click="addEmployee"
-        >
-          Add Employee
-        </button>
+            <!-- Submit Button -->
+            <div class="mt-6 text-right">
+              <button
+                type="submit" 
+                class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
+              >
+                Add Employee
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
-  </div>
     </div>
   </div>
 </template>

@@ -1,16 +1,173 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useRuntimeConfig } from '#imports'
+import { useNotifications } from '~/composables/useNotifications';
+
+const { unreadCount } = useNotifications();
+
+// Helper to get cookie by name
+const getCookie = (name: string) => {
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null
+  return null
+}
+
+const getAuthHeaders = () => {
+  const token = typeof window !== 'undefined' ? getCookie('access_token') : null;
+  return token
+    ? {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    : {};
+};
+
+const handleLogout = async () => {
+  try {
+    const refreshToken = getCookie('refresh_token'); // Read refresh_token from cookies
+    if (!refreshToken) {
+      console.warn('No refresh token found in cookies.');
+      window.location.href = '/signin'; // Fallback to login
+      return;
+    }
+
+    await $fetch(`${apiBase}/user/logout/`, {
+      method: 'POST',
+      body: { refresh_token: refreshToken },
+      ...getAuthHeaders(),
+    });
+
+    // Clear cookies (optional: depends if backend does it too)
+    document.cookie = 'access_token=; Max-Age=0; path=/';
+    document.cookie = 'refresh_token=; Max-Age=0; path=/';
+
+    // Redirect to login page
+    window.location.href = '/signin';
+  } catch (error) {
+    console.error('Logout failed:', error);
+    alert('Logout failed. Please try again.');
+  }
+};
+
+// Runtime config
+const config = useRuntimeConfig()
+const apiBase = config.public.API_BASE
+
+const profile = ref({
+  first_name: '',
+  middle_name: '',
+  last_name: '',
+  profile_picture: '',
+  email: '',
+})
+
+const fetchProfile = async () => {
+  const accessToken = getCookie('access_token')
+  const headers = accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}
+
+  try {
+    const response = await $fetch(`${apiBase}/patients/profile`, headers)
+    profile.value = {
+      first_name: response.user.first_name,
+      middle_name: response.user.middle_name,
+      last_name: response.user.last_name,
+      email: response.user.email,
+      profile_picture: response.user.profile_picture || '', // Optional fallback
+    }
+  } catch (error) {
+    console.error('Error fetching profile:', error)
+  }
+}
+
+interface MedicalEntry {
+  id: number
+  date: string
+  type: string
+  status: string
+}
+
+const medicalHistory = ref<MedicalEntry[]>([])
+
+const fetchMedicalHistory = async () => {
+  const accessToken = getCookie('access_token')
+  const headers = accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}
+
+  try {
+    const response = await $fetch(`${apiBase}/patients/history/medical`, headers)
+    medicalHistory.value = response
+  } catch (error) {
+    console.error('Error fetching medical history:', error)
+  }
+}
+
+interface Invoice {
+  id: number
+  amount: number
+  status: string
+}
+
+const invoices = ref<Invoice[]>([])
+
+const fetchInvoices = async () => {
+  const accessToken = getCookie('access_token')
+  const headers = accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}
+
+  try {
+    const response = await $fetch(`${apiBase}/billings/list`, headers)
+    invoices.value = response
+  } catch (error) {
+    console.error('Failed to fetch invoices:', error)
+  }
+}
+
+
+interface Notification {
+  id: number
+  message: string
+  created_at: string
+  read: boolean
+}
+
+const notifications = ref<Notification[]>([])
+
+const fetchNotifications = async () => {
+  const accessToken = getCookie('access_token')
+  const headers = accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}
+
+  try {
+    const response = await fetch(`${apiBase}/notifications/list`, headers)
+    const data = await response.json()
+    notifications.value = data
+  } catch (error) {
+    console.error('Error fetching notifications:', error)
+  }
+}
+
+
+onMounted(() => {
+  fetchProfile()
+  fetchMedicalHistory()
+  fetchInvoices()
+  fetchNotifications()
+})
+</script>
+
+
 <template>
     <div id="webcrumbs">
       <div class="bg-white"> 
         <div class="flex flex-col md:flex-row"> 
           <aside class="w-full md:w-64 bg-emerald-900 p-6 md:h-screen flex flex-col justify-between"> 
               <nav class="space-y-4"> 
-                  <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div> 
+                  <div class="text-white text-xl font-bold mb-8"> <a href="/patient/dashboard">Patient Dashboard</a></div> 
                   
                   <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
                       <span class="material-symbols-outlined mr-2">person</span> Profile 
                   </a> 
                   
-                  <a href="/patient/appointments" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
+                  <a href="/patient/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
                       <span class="material-symbols-outlined mr-2">event</span> Appointments 
                   </a>
                   
@@ -22,11 +179,16 @@
                       <span class="material-symbols-outlined mr-2">receipt</span> Billing 
                   </a> 
                   
-                  <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
-                      <span class="material-symbols-outlined mr-2">notifications</span> Notifications 
-                      <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span> 
+                  <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+                    <span class="material-symbols-outlined mr-2">notifications</span>
+                    Notifications
+                    <span
+                      v-if="unreadCount > 0"
+                      class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+                    >
+                      {{ unreadCount }}
+                    </span>
                   </a> 
-                  
                   <a href="/patient/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
                       <span class="material-symbols-outlined mr-2">chat</span> Chat 
                   </a> 
@@ -34,109 +196,121 @@
                   <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
                       <span class="material-symbols-outlined mr-2">comment</span> Feedback 
                   </a> 
+                  <a
+                    @click="handleLogout"
+                    class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+                  >
+                    <span class="material-symbols-outlined mr-2">logout</span>
+                    LogOut
+                  </a> 
               </nav> 
               <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"> 
                   © 2025 <a href="/">Assosa General Hospital</a>. All rights reserved. 
               </div> 
           </aside>
-            <main class="flex-1 p-4 md:p-8 bg-emerald-50"> 
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8"> 
-                <section class="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow duration-200"> 
-                  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6"> 
-                    <h2 class="text-lg md:text-xl font-bold mb-4 sm:mb-0">Profile Information</h2> 
-                    <button class="w-full sm:w-auto bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 hover:scale-105 transition-all duration-200"> Edit Profile </button> 
-                  </div> <div class="space-y-4"> 
-                    <div class="flex items-center space-x-4"> 
-                      <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-emerald-200 hover:border-emerald-400 transition-all duration-200"> 
-                        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3" alt="Profile" class="w-full h-full object-cover hover:scale-110 transition-all duration-200"/> 
-                      </div> 
-                      <div> 
-                        <h3 class="font-semibold">John Doe</h3> 
-                        <p class="text-gray-600">john.doe@email.com</p> 
-                      </div> 
-                    </div> 
-                  </div> 
-                </section> 
-                <section class="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow duration-200"> 
-                  <div class="bg-gradient-to-r from-emerald-100 to-white p-4 rounded-t-xl"> 
-                    <h2 class="text-lg md:text-xl font-bold">Medical History</h2> 
-                  </div> 
-                  <div class="mt-4 overflow-x-auto"> 
-                    <table class="w-full"> 
-                      <thead> 
-                        <tr> 
-                          <th class="text-left p-2">Date</th> 
-                          <th class="text-left p-2">Type</th> 
-                          <th class="text-left p-2">Status</th> 
-                        </tr> 
-                      </thead> 
-                      <tbody> 
-                        <tr class="hover:bg-emerald-50"> 
-                          <td class="p-2">2024-01-15</td> 
-                          <td class="p-2">Check-up</td> 
-                          <td class="p-2"> 
-                            <span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-sm"> Completed </span> 
-                          </td> 
-                        </tr> 
-                      </tbody> 
-                    </table> 
-                  </div> 
-                </section> 
-                <section class="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow duration-200"> 
-                  <h2 class="text-lg md:text-xl font-bold mb-6">Billing History</h2> 
-                  <div class="overflow-x-auto"> 
-                    <table class="w-full"> 
-                      <thead> 
-                        <tr> 
-                          <th class="text-left p-2">Invoice</th> <th class="text-left p-2">Amount</th> 
-                          <th class="text-left p-2">Status</th> <th class="text-left p-2">Action</th> 
-                        </tr> 
-                      </thead> 
-                      <tbody> 
-                        <tr class="hover:bg-emerald-50"> 
-                          <td class="p-2">#INV-001</td> 
-                          <td class="p-2">$150.00</td> 
-                          <td class="p-2"> 
-                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-sm"> Unpaid </span> 
-                          </td> 
-                          <td class="p-2"> 
-                            <button class="bg-emerald-600 text-white px-3 py-1 rounded-lg hover:bg-emerald-700 transition-colors duration-200"> Pay Now </button> 
-                          </td> 
-                        </tr> 
-                      </tbody> 
-                    </table> 
-                  </div> 
-                </section> 
-                <section class="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow duration-200 md:col-span-2 lg:col-span-3"> 
-                  <h2 class="text-lg md:text-xl font-bold mb-6">Notifications</h2> 
-                  <div class="space-y-4"> 
-                    <div class="flex items-center p-4 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors duration-200"> 
-                      <span class="material-symbols-outlined text-emerald-600 mr-4">calendar_today</span> 
-                      <div class="flex-1"> 
-                        <h3 class="font-semibold">Appointment Reminder</h3> 
-                        <p class="text-sm text-gray-600">Your check-up is scheduled for tomorrow at 10:00 AM</p> 
-                        <span class="text-xs text-gray-500">1 hour ago</span> 
-                      </div> 
-                    </div> 
-                    <div class="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors duration-200"> 
-                      <span class="material-symbols-outlined text-blue-600 mr-4">medication</span> <div class="flex-1"> 
-                        <h3 class="font-semibold">Prescription Refill</h3> 
-                        <p class="text-sm text-gray-600">Your prescription is ready for pickup</p> 
-                        <span class="text-xs text-gray-500">3 hours ago</span> 
-                      </div> 
-                    </div> 
-                    <div class="flex items-center p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors duration-200"> 
-                      <span class="material-symbols-outlined text-yellow-600 mr-4">payment</span> 
-                      <div class="flex-1"> 
-                        <h3 class="font-semibold">Payment Due</h3> 
-                        <p class="text-sm text-gray-600">Payment for last visit is due in 3 days</p> 
-                        <span class="text-xs text-gray-500">1 day ago</span> 
-                      </div> 
-                    </div> 
-                  </div> 
-                </section> 
-              </div> 
-            </main> 
+          <main class="flex-1 p-4 md:p-8 bg-emerald-50">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+                
+                <!-- Profile Information -->
+                <section class="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow duration-200">
+                  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+                    <h2 class="text-lg md:text-xl font-bold mb-4 sm:mb-0">Profile Information</h2>
+                  </div>
+                  <div class="space-y-4">
+                    <div class="flex items-center space-x-4">
+                      <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-emerald-200 hover:border-emerald-400 transition-all duration-200">
+                        <img :src="profile.profile_picture || 'https://via.placeholder.com/150'" alt="Profile" class="w-full h-full object-cover hover:scale-110 transition-all duration-200" />
+                      </div>
+                      <div>
+                        <h3 class="font-semibold">{{ profile.first_name }} {{ profile.middle_name }} {{ profile.last_name }}</h3>
+                        <p class="text-gray-600">{{ profile.email }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- Medical History -->
+                <section class="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow duration-200">
+                  <div class="bg-gradient-to-r from-emerald-100 to-white p-4 rounded-t-xl">
+                    <h2 class="text-lg md:text-xl font-bold">Medical History</h2>
+                  </div>
+                  <div class="mt-4 overflow-x-auto">
+                    <table class="w-full">
+                      <thead>
+                        <tr>
+                          <th class="text-left p-2">Date</th>
+                          <th class="text-left p-2">Type</th>
+                          <th class="text-left p-2">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="entry in medicalHistory" :key="entry.id" class="hover:bg-emerald-50">
+                          <td class="p-2">{{ entry.date }}</td>
+                          <td class="p-2">{{ entry.type }}</td>
+                          <td class="p-2">
+                            <span
+                              class="px-2 py-1 rounded-full text-sm"
+                              :class="entry.status.toLowerCase() === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'"
+                            >
+                              {{ entry.status }}
+                            </span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <!-- Billing History -->
+                <section class="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow duration-200">
+                  <h2 class="text-lg md:text-xl font-bold mb-6">Billing History</h2>
+                  <div class="overflow-x-auto">
+                    <table class="w-full">
+                      <thead>
+                        <tr>
+                          <th class="text-left p-2">Invoice</th>
+                          <th class="text-left p-2">Amount</th>
+                          <th class="text-left p-2">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="invoice in invoices" :key="invoice.id" class="hover:bg-emerald-50">
+                          <td class="p-2">#INV-{{ invoice.id }}</td>
+                          <td class="p-2">${{ invoice.amount.toFixed(2) }}</td>
+                          <td class="p-2">
+                            <span
+                              class="px-2 py-1 rounded-full text-sm"
+                              :class="invoice.status.toLowerCase() === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'"
+                            >
+                              {{ invoice.status }}
+                            </span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <!-- Notifications -->
+                <section class="bg-white rounded-xl shadow-lg p-4 md:p-6 hover:shadow-xl transition-shadow duration-200 md:col-span-2 lg:col-span-3">
+                  <h2 class="text-lg md:text-xl font-bold mb-6">Notifications</h2>
+                  <div class="space-y-4">
+                    <div
+                      v-for="note in notifications"
+                      :key="note.id"
+                      class="flex items-center p-4 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors duration-200"
+                    >
+                      <span class="material-symbols-outlined text-emerald-600 mr-4">notifications</span>
+                      <div class="flex-1">
+                        <h3 class="font-semibold">Notification</h3>
+                        <p class="text-sm text-gray-600">{{ note.message }}</p>
+                        <span class="text-xs text-gray-500">{{ new Date(note.created_at).toLocaleString() }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </main>
           </div> 
         </div>
       </div>

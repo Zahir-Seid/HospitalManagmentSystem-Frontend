@@ -1,5 +1,18 @@
 <script setup>
 import { ref } from 'vue'
+import { useNotifications } from '~/composables/useNotifications';
+import { useAuth } from '~/composables/useAuth';
+
+const {handleLogout} = useAuth();
+const { unreadCount } = useNotifications();
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 const config = useRuntimeConfig()
 const apiBase = config.public.API_BASE
 
@@ -18,9 +31,21 @@ const sendFeedback = async () => {
   feedbackError.value = ''
   isSending.value = true
 
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Get token from cookies
+        },
+      }
+    : {};
+
   try {
     const response = await $fetch(`${apiBase}/patients/comment`, {
       method: 'POST',
+      headers: authHeaders.headers, // Add headers for auth
       body: { message: feedbackMessage.value },
     })
 
@@ -41,7 +66,7 @@ const sendFeedback = async () => {
         <!-- Sidebar -->
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
+            <div class="text-white text-xl font-bold mb-8"><a href="/patient/dashboard" >Patient Dashboard </a></div>
             <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
@@ -55,14 +80,23 @@ const sendFeedback = async () => {
               <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
             <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
-              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+              <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
-            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">chat</span> Chat
             </a>
             <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">comment</span> Feedback
+            </a>
+            <a @click.prevent="handleLogout" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">logout</span> LogOut
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">

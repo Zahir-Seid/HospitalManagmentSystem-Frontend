@@ -15,25 +15,33 @@ export function useEmployees() {
   const loading = ref(true);
   const error = ref<string | null>(null);
 
-  // Access the API base URL from the Nuxt runtime config
   const config = useRuntimeConfig();
-  const apiBase = config.public.API_BASE;  // API Base URL
+  const apiBase = config.public.API_BASE;
 
-  // Authorization headers with the Bearer token
-  const authHeaders = {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('access_token')}`,  // Get the token from local storage
-    },
+  // Helper function to get a cookie value by name
+  const getCookie = (name: string): string | null => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
+    return null;
   };
+
+  // Get token from cookies if in browser environment
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    : {};
 
   const fetchEmployees = async () => {
     try {
-      // Fetch employees from API with Bearer authentication
-      const response = await $fetch<Employee[]>(`${apiBase}/api/Managment/employees/`, {
-        ...authHeaders,  // Include the authorization headers in the request
+      const response = await $fetch<Employee[]>(`${apiBase}/Managment/employees/`, {
+        ...authHeaders,
       });
-      
-      // Assign response data to employees list
       employees.value = response;
     } catch (err) {
       error.value = "Failed to load employees.";

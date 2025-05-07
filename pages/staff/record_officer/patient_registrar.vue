@@ -1,20 +1,55 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter, useRuntimeConfig } from '#imports';
+import { useAuth } from '~/composables/useAuth' 
+import { useNotifications } from '~/composables/useNotifications';
+const { unreadCount } = useNotifications();
+
+const { handleLogout } = useAuth()
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
 const router = useRouter();
 const config = useRuntimeConfig();
-const apiBase = config.public.API_BASE; // API base URL
+const apiBase = config.public.API_BASE;
 
-const patients = ref([]); // To hold the inactive patients
+const patients = ref([]);
 const errorMessage = ref('');
+
+const calculateAge = (dob) => {
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const fetchPatients = async () => {
   try {
+    const token = getCookie('access_token');
+    if (!token) throw new Error('No access token found');
+
     const response = await $fetch(`${apiBase}/user/approve-patient`, {
       method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
-    patients.value = response; // Assuming the response contains a list of inactive patients
+
+    // Add age and contact aliases
+    patients.value = response.patients.map((patient) => ({
+      ...patient,
+      age: calculateAge(patient.date_of_birth),
+      contact: patient.phone_number,
+    }));
   } catch (error) {
     errorMessage.value = error.data?.error || 'Failed to load patients.';
   }
@@ -22,12 +57,17 @@ const fetchPatients = async () => {
 
 const approvePatient = async (patientId) => {
   try {
+    const token = getCookie('access_token');
+    if (!token) throw new Error('No access token found');
+
     await $fetch(`${apiBase}/user/approve-patient/`, {
       method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       body: { user_id: patientId },
     });
 
-    // Refresh the patient list after approval
     await fetchPatients();
     alert('Patient approved successfully!');
   } catch (error) {
@@ -35,9 +75,9 @@ const approvePatient = async (patientId) => {
   }
 };
 
-// Fetch patients when the component is mounted
 onMounted(fetchPatients);
 </script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -65,6 +105,12 @@ onMounted(fetchPatients);
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
             <a
               href="/staff/record_officer/inbox"
@@ -87,6 +133,15 @@ onMounted(fetchPatients);
               <span class="material-symbols-outlined mr-2">meeting_room</span>
               Assign Room
             </a>
+            <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
@@ -97,14 +152,22 @@ onMounted(fetchPatients);
           <div class="space-y-6">
             <h2 class="text-2xl font-semibold mb-6">Pending Patient Registrations</h2>
 
-            <!-- Inactive patients list -->
+            <div v-if="errorMessage" class="text-red-600">{{ errorMessage }}</div>
+
             <div class="grid gap-4">
-              <div v-for="patient in patients" :key="patient.id" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+              <div
+                v-for="patient in patients"
+                :key="patient.user_id"
+                class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300"
+              >
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-4">
-                    <!-- Patient Profile Picture -->
-                    <div v-if="patient.profile_picture" class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <img :src="patient.profile_picture" alt="Patient Picture" class="w-full h-full object-cover rounded-full" />
+                    <div v-if="patient.profile_picture_url" class="w-16 h-16 bg-emerald-100 rounded-full">
+                      <img
+                        :src="patient.profile_picture_url"
+                        alt="Patient Picture"
+                        class="w-full h-full object-cover rounded-full"
+                      />
                     </div>
                     <div v-else class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
                       <span class="material-symbols-outlined text-3xl text-emerald-600">person</span>
@@ -112,11 +175,14 @@ onMounted(fetchPatients);
 
                     <div>
                       <h3 class="text-lg font-semibold">{{ patient.first_name }} {{ patient.last_name }}</h3>
-                      <p class="text-sm text-gray-500">Registration ID: {{ patient.registration_id }}</p>
+                      <p class="text-sm text-gray-500">User ID: {{ patient.user_id }}</p>
                     </div>
                   </div>
 
-                  <button @click="approvePatient(patient.id)" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2">
+                  <button
+                    @click="approvePatient(patient.user_id)"
+                    class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
+                  >
                     <span class="material-symbols-outlined">check</span> Approve
                   </button>
                 </div>

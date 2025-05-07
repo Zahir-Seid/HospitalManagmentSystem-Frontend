@@ -15,21 +15,21 @@ const errorMessage = ref('');
 const login = async () => {
   try {
     // Send login request
-    const response = await $fetch(`${apiBase}/login/`, {
+    const response = await $fetch(`${apiBase}/user/login/`, {
       method: 'POST',
       body: {
         username: username.value,
         password: password.value,
       },
     });
-
-    // Store tokens in localStorage
-    localStorage.setItem('access_token', response.access);
-    localStorage.setItem('refresh_token', response.refresh);
-
+    
+    // Store tokens in cookies without HttpOnly (since it's not needed for showcase)
+    document.cookie = `access_token=${response.access}; path=/; Secure; SameSite=Strict`;
+    document.cookie = `refresh_token=${response.refresh}; path=/; Secure; SameSite=Strict`;
     // Navigate based on user role
-    const role = response.role; // Assuming the API returns a `role` field with the user's role
-
+    const user = response.user;
+    const role = user.role;
+    
     // Conditional navigation based on the role
     if (role === 'doctor') {
       router.push('/staff/doctor/dashboard');
@@ -43,7 +43,7 @@ const login = async () => {
       router.push('/staff/record_officer/inbox');
     } else {
       // If role is not recognized, you can show an error or navigate to a default page
-      errorMessage.value = 'Unknown role. Please contact the administrator.';
+      errorMessage.value = 'Unknown user. Please contact the administrator.';
     }
   } catch (error) {
     errorMessage.value = error.data?.error || 'Login failed.';

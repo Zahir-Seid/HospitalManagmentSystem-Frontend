@@ -1,3 +1,140 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRuntimeConfig } from '#imports';
+import { useNotifications } from '~/composables/useNotifications';
+import { useAuth } from '~/composables/useAuth'
+const { handleLogout } = useAuth()
+
+const { unreadCount } = useNotifications();
+// Utility
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+// State
+const drugs = ref([]);
+const loading = ref(false);
+const searchQuery = ref('');
+const showAddForm = ref(false);
+const showEditForm = ref(false); // Track whether the edit form is showing
+const editDrugData = ref({
+  id: null,
+  name: '',
+  description: '',
+  price: 0,
+  stock_quantity: 0,
+});
+
+// Auth
+const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+const authHeaders = accessToken
+  ? {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  : {};
+
+// CRUD
+const fetchDrugs = async () => {
+  loading.value = true;
+  try {
+    drugs.value = await $fetch(`${apiBase}/pharmacy/drugs/list`, { ...authHeaders });
+  } catch (err) {
+    console.error('Fetch failed:', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const searchDrugs = async () => {
+  loading.value = true;
+  try {
+    const query = searchQuery.value.trim();
+    const url = query
+      ? `${apiBase}/pharmacy/drugs/search?name=${encodeURIComponent(query)}`
+      : `${apiBase}/pharmacy/drugs/list`;
+    drugs.value = await $fetch(url, { ...authHeaders });
+  } catch (err) {
+    console.error('Search failed:', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const addDrug = async () => {
+  try {
+    await $fetch(`${apiBase}/pharmacy/drugs/create`, {
+      method: 'POST',
+      body: editDrugData.value,
+      ...authHeaders,
+    });
+    await fetchDrugs();
+    closeForm();
+  } catch (err) {
+    console.error('Add failed:', err);
+  }
+};
+
+const editDrug = (drug) => {
+  editDrugData.value = { ...drug }; // Pre-fill the form with the selected drug's data
+  showAddForm.value = false; // Hide the add form
+  showEditForm.value = true; // Show the edit form
+};
+
+const updateDrug = async () => {
+  try {
+    await $fetch(`${apiBase}/pharmacy/drugs/update/${editDrugData.value.id}`, {
+      method: 'PUT',
+      body: editDrugData.value,
+      ...authHeaders,
+    });
+    await fetchDrugs();
+    closeForm();
+  } catch (err) {
+    console.error('Update failed:', err);
+  }
+};
+
+const deleteDrug = async (id) => {
+  try {
+    await $fetch(`${apiBase}/pharmacy/drugs/delete/${id}`, {
+      method: 'DELETE',
+      ...authHeaders,
+    });
+    await fetchDrugs();
+  } catch (err) {
+    console.error('Delete failed:', err);
+  }
+};
+
+// Utility to close forms
+const closeForm = () => {
+  showAddForm.value = false;
+  showEditForm.value = false;
+  editDrugData.value = { id: null, name: '', description: '', price: 0, stock_quantity: 0 };
+};
+
+// Mount
+onMounted(() => {
+  fetchDrugs();
+});
+
+const saveDrug = async () => {
+  if (showAddForm.value) {
+    await addDrug();
+  } else if (showEditForm.value) {
+    await updateDrug();
+  }
+};
+</script>
+
 <template
   ><div id="webcrumbs">
     <div class="w-[1280px] font-sans">
@@ -10,21 +147,11 @@
               <span class="material-symbols-outlined mr-2 text-2xl"
                 >local_pharmacy</span
               >
-              Pharmacy Dashboard
+              <a href="/staff/pharmacist/dashboard">Pharmacy Dashboard</a>
             </div>
             <a
-              href="/pharmacy/prescriptions"
+              href="/staff/pharmacist/inventory"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
-            >
-              <span
-                class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
-                >medication</span
-              >
-              Prescriptions
-            </a>
-            <a
-              href="/pharmacy/drugs"
-              class="flex items-center text-white bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
               <span
                 class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
@@ -34,7 +161,7 @@
             </a>
             <div class="pt-4 border-t border-emerald-800 mt-4"></div>
             <a
-              href="/pharmacy/notifications"
+              href="/staff/pharmacist/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
               <span
@@ -43,12 +170,14 @@
               >
               Notifications
               <span
-                class="ml-auto bg-emerald-600 text-white text-xs px-2 py-1 rounded-full group-hover:bg-white group-hover:text-emerald-800 transition-colors"
-                >3</span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
               >
+                {{ unreadCount }}
+              </span>
             </a>
             <a
-              href="/pharmacy/inbox"
+              href="/staff/pharmacist/inbox"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
               <span
@@ -58,7 +187,7 @@
               Inbox
             </a>
             <a
-              href="/pharmacy/attendance"
+              href="/staff/pharmacist/attendance"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
               <span
@@ -67,6 +196,15 @@
               >
               Attendance
             </a>
+            <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
           <div
             class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"
@@ -77,422 +215,76 @@
         <main class="flex-1 p-6 bg-gray-50">
           <header class="mb-6">
             <div class="flex justify-between items-center">
-              <h1 class="text-2xl font-bold text-emerald-900">
-                Drug Inventory Management
-              </h1>
-              <div class="flex items-center space-x-4">
-                <div class="relative group">
-                  <button
-                    class="p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
-                  >
-                    <span class="material-symbols-outlined text-emerald-600"
-                      >notifications</span
-                    >
-                    <span
-                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      >3</span
-                    >
-                  </button>
-                  <div
-                    class="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10"
-                  >
-                    <h4 class="font-bold text-emerald-900 mb-2">
-                      Recent Notifications
-                    </h4>
-                    <div class="space-y-2">
-                      <div
-                        class="p-2 hover:bg-emerald-50 rounded-lg transition-colors"
-                      >
-                        <p class="text-sm font-medium">
-                          Low stock alert for Amoxicillin
-                        </p>
-                        <p class="text-xs text-gray-500">10 minutes ago</p>
-                      </div>
-                      <div
-                        class="p-2 hover:bg-emerald-50 rounded-lg transition-colors"
-                      >
-                        <p class="text-sm font-medium">
-                          New prescription from Dr. Chen
-                        </p>
-                        <p class="text-xs text-gray-500">1 hour ago</p>
-                      </div>
-                      <div
-                        class="p-2 hover:bg-emerald-50 rounded-lg transition-colors"
-                      >
-                        <p class="text-sm font-medium">
-                          Medication expiry reminder
-                        </p>
-                        <p class="text-xs text-gray-500">Yesterday</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div
-                  class="bg-white p-1 rounded-full shadow-md hover:shadow-lg transition-all"
-                >
-                  <img
-                    src="https://randomuser.me/api/portraits/women/45.jpg"
-                    alt="User"
-                    class="h-8 w-8 rounded-full"
-                  />
-                </div>
-              </div>
+              <h1 class="text-2xl font-bold text-emerald-900">Drug Inventory Management</h1>
             </div>
           </header>
+
+          <!-- Overview Cards -->
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div
-              class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-4 border-l-4 border-emerald-500"
-            >
+            <div class="bg-white rounded-xl shadow-md p-4 border-l-4 border-emerald-500">
               <div class="flex items-center">
                 <div class="p-3 bg-emerald-100 rounded-lg">
-                  <span class="material-symbols-outlined text-emerald-600"
-                    >vaccines</span
-                  >
+                  <span class="material-symbols-outlined text-emerald-600">vaccines</span>
                 </div>
                 <div class="ml-4">
                   <p class="text-sm text-gray-500">Total Medications</p>
-                  <h3 class="text-2xl font-bold">124</h3>
-                </div>
-              </div>
-            </div>
-            <div
-              class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-4 border-l-4 border-amber-500"
-            >
-              <div class="flex items-center">
-                <div class="p-3 bg-amber-100 rounded-lg">
-                  <span class="material-symbols-outlined text-amber-600"
-                    >inventory</span
-                  >
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-500">Low Stock Items</p>
-                  <h3 class="text-2xl font-bold">7</h3>
-                </div>
-              </div>
-            </div>
-            <div
-              class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-4 border-l-4 border-red-500"
-            >
-              <div class="flex items-center">
-                <div class="p-3 bg-red-100 rounded-lg">
-                  <span class="material-symbols-outlined text-red-600"
-                    >event_busy</span
-                  >
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-500">Expiring Medications</p>
-                  <h3 class="text-2xl font-bold">12</h3>
+                  <h3 class="text-2xl font-bold">{{ drugs.length }}</h3>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Drug Inventory Table -->
           <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div
-              class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl mb-6"
-            >
+            <div class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl mb-6">
               <div class="flex justify-between items-center flex-wrap gap-4">
-                <h3 class="text-xl font-bold text-emerald-900">
-                  Drug Inventory
-                </h3>
+                <h3 class="text-xl font-bold text-emerald-900">Drug Inventory</h3>
                 <div class="flex gap-4">
                   <div class="relative">
-                    <span
-                      class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                      >search</span
-                    >
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
                     <input
                       type="text"
+                      v-model="searchQuery"
+                      @input="searchDrugs"
                       placeholder="Search medications..."
-                      class="border border-emerald-200 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all w-64"
+                      class="border border-emerald-200 rounded-lg pl-10 pr-4 py-2 w-64"
                     />
                   </div>
                   <button
-                    class="bg-emerald-600 text-white px-4 py-2 rounded-full hover:bg-emerald-700 transition-colors flex items-center"
+                    @click="showAddForm = !showAddForm"
+                    class="bg-emerald-600 text-white px-4 py-2 rounded-full flex items-center"
                   >
-                    <span class="material-symbols-outlined align-middle mr-2"
-                      >add</span
-                    >
-                    Add Medication
+                    <span class="material-symbols-outlined mr-2">add</span>Add Medication
                   </button>
                 </div>
               </div>
             </div>
-            <div class="mb-4 flex gap-2">
-              <button
-                class="px-3 py-1 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors text-emerald-800 bg-emerald-50"
-              >
-                All
-              </button>
-              <button
-                class="px-3 py-1 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
-              >
-                Antibiotics
-              </button>
-              <button
-                class="px-3 py-1 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
-              >
-                Antidiabetics
-              </button>
-              <button
-                class="px-3 py-1 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
-              >
-                Lipid-lowering
-              </button>
-              <button
-                class="px-3 py-1 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
-              >
-                Analgesics
-              </button>
-              <button
-                class="px-3 py-1 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
-              >
-                Others
-              </button>
-            </div>
-            <div class="overflow-x-auto">
+
+            <!-- Medications Table -->
+            <div class="overflow-x-auto" v-if="drugs.length">
               <table class="w-full">
                 <thead class="bg-emerald-50">
                   <tr>
-                    <th class="p-4 text-left text-emerald-700">
-                      Medication Name
-                    </th>
-                    <th class="p-4 text-left text-emerald-700">Category</th>
-                    <th class="p-4 text-left text-emerald-700">
-                      Current Stock
-                    </th>
+                    <th class="p-4 text-left text-emerald-700">Medication Name</th>
+                    <th class="p-4 text-left text-emerald-700">Description</th>
+                    <th class="p-4 text-left text-emerald-700">Current Stock</th>
                     <th class="p-4 text-left text-emerald-700">Unit Price</th>
-                    <th class="p-4 text-left text-emerald-700">Expiry Date</th>
-                    <th class="p-4 text-left text-emerald-700">Status</th>
                     <th class="p-4 text-left text-emerald-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Amoxicillin 500mg</td>
-                    <td class="p-4">Antibiotics</td>
-                    <td class="p-4">
-                      <div class="flex items-center">
-                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div
-                            class="bg-red-500 h-2 rounded-full"
-                            style="width: 15%"
-                          ></div>
-                        </div>
-                        <span>15</span>
-                      </div>
-                    </td>
-                    <td class="p-4">$2.50</td>
-                    <td class="p-4">Dec 15, 2025</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-red-100 text-red-800"
-                        >Critical</span
-                      >
-                    </td>
+                  <tr v-for="drug in drugs" :key="drug.id" class="border-b hover:bg-emerald-50">
+                    <td class="p-4 font-semibold">{{ drug.name }}</td>
+                    <td class="p-4">{{ drug.description }}</td>
+                    <td class="p-4">{{ drug.stock_quantity }}</td>
+                    <td class="p-4">${{ drug.price.toFixed(2) }}</td>
                     <td class="p-4">
                       <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
+                        <button @click="editDrug(drug)">
+                          <span class="material-symbols-outlined text-emerald-600 hover:text-emerald-700">edit</span>
                         </button>
-                        <button
-                          class="text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined"
-                            >add_shopping_cart</span
-                          >
-                        </button>
-                        <button
-                          class="text-red-600 hover:text-red-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Metformin 850mg</td>
-                    <td class="p-4">Antidiabetic</td>
-                    <td class="p-4">
-                      <div class="flex items-center">
-                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div
-                            class="bg-amber-500 h-2 rounded-full"
-                            style="width: 30%"
-                          ></div>
-                        </div>
-                        <span>30</span>
-                      </div>
-                    </td>
-                    <td class="p-4">$1.75</td>
-                    <td class="p-4">Jul 10, 2026</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-amber-100 text-amber-800"
-                        >Low</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined"
-                            >add_shopping_cart</span
-                          >
-                        </button>
-                        <button
-                          class="text-red-600 hover:text-red-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Atorvastatin 20mg</td>
-                    <td class="p-4">Lipid-lowering</td>
-                    <td class="p-4">
-                      <div class="flex items-center">
-                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div
-                            class="bg-red-500 h-2 rounded-full"
-                            style="width: 10%"
-                          ></div>
-                        </div>
-                        <span>10</span>
-                      </div>
-                    </td>
-                    <td class="p-4">$3.25</td>
-                    <td class="p-4">Nov 22, 2025</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-red-100 text-red-800"
-                        >Critical</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined"
-                            >add_shopping_cart</span
-                          >
-                        </button>
-                        <button
-                          class="text-red-600 hover:text-red-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Lisinopril 10mg</td>
-                    <td class="p-4">Antihypertensive</td>
-                    <td class="p-4">
-                      <div class="flex items-center">
-                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div
-                            class="bg-emerald-500 h-2 rounded-full"
-                            style="width: 80%"
-                          ></div>
-                        </div>
-                        <span>80</span>
-                      </div>
-                    </td>
-                    <td class="p-4">$1.20</td>
-                    <td class="p-4">Sep 05, 2026</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800"
-                        >Adequate</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined"
-                            >add_shopping_cart</span
-                          >
-                        </button>
-                        <button
-                          class="text-red-600 hover:text-red-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Paracetamol 500mg</td>
-                    <td class="p-4">Analgesic</td>
-                    <td class="p-4">
-                      <div class="flex items-center">
-                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div
-                            class="bg-emerald-500 h-2 rounded-full"
-                            style="width: 95%"
-                          ></div>
-                        </div>
-                        <span>95</span>
-                      </div>
-                    </td>
-                    <td class="p-4">$0.75</td>
-                    <td class="p-4">Aug 18, 2026</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800"
-                        >Adequate</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <div class="flex space-x-2">
-                        <button
-                          class="text-emerald-600 hover:text-emerald-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button
-                          class="text-blue-600 hover:text-blue-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined"
-                            >add_shopping_cart</span
-                          >
-                        </button>
-                        <button
-                          class="text-red-600 hover:text-red-700 transition-colors hover:scale-110 transform p-1"
-                        >
-                          <span class="material-symbols-outlined">delete</span>
+                        <button @click="deleteDrug(drug.id)">
+                          <span class="material-symbols-outlined text-red-600 hover:text-red-700">delete</span>
                         </button>
                       </div>
                     </td>
@@ -500,167 +292,47 @@
                 </tbody>
               </table>
             </div>
-            <div class="flex justify-between items-center mt-6">
-              <div class="text-sm text-gray-500">
-                Showing 5 of 124 medications
+
+            <!-- Add Drug Form -->
+            <div v-if="showAddForm || showEditForm" class="bg-white rounded-xl shadow-lg p-6">
+              <div class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl mb-6">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-xl font-bold text-emerald-900">{{ showAddForm ? 'Add New Medication' : 'Edit Medication' }}</h3>
+                </div>
               </div>
-              <div class="flex space-x-2">
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  <span class="material-symbols-outlined text-sm"
-                    >chevron_left</span
-                  >
-                </button>
-                <button
-                  class="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
-                >
-                  1
-                </button>
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  2
-                </button>
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  3
-                </button>
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  4
-                </button>
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  5
-                </button>
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  <span class="material-symbols-outlined text-sm"
-                    >chevron_right</span
-                  >
-                </button>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Medication Name</label>
+                    <input type="text" v-model="editDrugData.name" class="w-full border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea v-model="editDrugData.description" class="w-full border p-2 rounded-lg" rows="3"></textarea>
+                  </div>
+                </div>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <input type="number" v-model.number="editDrugData.stock_quantity" class="w-full border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Unit Price ($)</label>
+                    <input type="number" v-model.number="editDrugData.price" step="0.01" class="w-full border p-2 rounded-lg" />
+                  </div>
+                </div>
+              </div>
+              <div class="flex justify-end mt-6 space-x-3">
+                <button @click="closeForm" class="px-4 py-2 border rounded-lg">Cancel</button>
+                <button @click="saveDrug" class="px-4 py-2 bg-emerald-600 text-white rounded-lg">{{ showAddForm ? 'Save Medication' : 'Update Medication' }}</button>
               </div>
             </div>
-          </div>
-          <div class="bg-white rounded-xl shadow-lg p-6">
-            <div
-              class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl mb-6"
-            >
-              <div class="flex justify-between items-center">
-                <h3 class="text-xl font-bold text-emerald-900">
-                  Add New Medication
-                </h3>
-              </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Medication Name</label
-                  >
-                  <input
-                    type="text"
-                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    placeholder="Enter medication name"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Category</label
-                  >
-                  <select
-                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  >
-                    <option>Select category</option>
-                    <option>Antibiotics</option>
-                    <option>Antidiabetic</option>
-                    <option>Lipid-lowering</option>
-                    <option>Analgesic</option>
-                    <option>Antihypertensive</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Description</label
-                  >
-                  <textarea
-                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    rows="3"
-                    placeholder="Enter medication description"
-                  ></textarea>
-                </div>
-              </div>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Quantity</label
-                  >
-                  <input
-                    type="number"
-                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    placeholder="Enter quantity"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Unit Price ($)</label
-                  >
-                  <input
-                    type="number"
-                    step="0.01"
-                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    placeholder="Enter unit price"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Expiry Date</label
-                  >
-                  <input
-                    type="date"
-                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"
-                    >Supplier</label
-                  >
-                  <select
-                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                  >
-                    <option>Select supplier</option>
-                    <option>MedSupply Inc.</option>
-                    <option>Pharma Distributors</option>
-                    <option>Global Meds</option>
-                    <option>Health Solutions</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="flex justify-end mt-6 space-x-3">
-              <button
-                class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-              >
-                Save Medication
-              </button>
-            </div>
-          </div>
         </main>
       </div>
     </div>
-  </div></template
->
+  </div>
+</template>
 
 <style scoped>
   @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);

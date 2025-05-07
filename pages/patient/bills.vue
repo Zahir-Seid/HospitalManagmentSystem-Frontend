@@ -1,10 +1,105 @@
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRuntimeConfig } from '#imports'
+import { useNotifications } from '~/composables/useNotifications';
+import { useAuth } from '~/composables/useAuth';
+
+const {handleLogout} = useAuth();
+const { unreadCount } = useNotifications();
+// Cookie token getter
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop().split(';').shift()
+  return null
+}
+
+const config = useRuntimeConfig()
+const apiBase = config.public.API_BASE
+
+const totalInvoices = computed(() => invoices.value.length || 0)
+const invoices = ref([])
+const errorMessage = ref('')
+
+// Fetch invoices
+const fetchInvoices = async () => {
+  const accessToken = getCookie('access_token')
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    : {}
+
+  try {
+    const response = await $fetch(`${apiBase}/billings/list`, authHeaders)
+    invoices.value = response
+  } catch (error) {
+    console.error('Failed to fetch invoices:', error)
+    errorMessage.value = 'Could not load invoices.'
+  }
+}
+
+// Computed: pending amount
+const pendingInvoices = computed(() =>
+  invoices.value.filter((inv) => inv.status.toLowerCase() !== 'paid')
+)
+const totalPendingAmount = computed(() =>
+  pendingInvoices.value.reduce((sum, inv) => sum + inv.amount, 0)
+)
+
+// Generate payment link for individual invoice
+const generatePaymentLink = async (invoiceId) => {
+  const accessToken = getCookie('access_token')
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    : {}
+
+  try {
+    const response = await $fetch(`${apiBase}/billings/pay/${invoiceId}`, {
+      ...authHeaders,
+      method: 'POST',
+    })
+
+    if (response && response.payment_url) {
+      window.open(response.payment_url, '_blank')
+    } else {
+      alert('Payment link could not be generated.')
+    }
+  } catch (error) {
+    console.error('Error generating payment link:', error)
+    alert('Error generating payment link.')
+  }
+}
+
+// Pay all due (just opens payment for first pending invoice as placeholder)
+const payAllDue = () => {
+  if (pendingInvoices.value.length === 0) {
+    alert('No pending invoices.')
+    return
+  }
+  // Use the first pending invoice for payment
+  generatePaymentLink(pendingInvoices.value[0].id)
+
+}
+
+onMounted(() => {
+  fetchInvoices()
+})
+</script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
       <div class="flex h-full">
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
+            <div class="text-white text-xl font-bold mb-8"><a href="/patient/dashboard" >Patient Dashboard </a></div>
             <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
@@ -18,14 +113,23 @@
               <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
             <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
-              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+              <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
-            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">chat</span> Chat
             </a>
             <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">comment</span> Feedback
+            </a>
+            <a @click.prevent="handleLogout" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">logout</span> LogOut
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -40,9 +144,10 @@
             <div class="flex space-x-4">
               <button
                 class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-all duration-300 hover:scale-105 flex items-center"
+                @click="payAllDue"
               >
                 <span class="material-symbols-outlined mr-2">credit_card</span>
-                Pay All Due
+                Pay All Due (${{ totalPendingAmount.toFixed(2) }})
               </button>
             </div>
           </div>
@@ -50,14 +155,16 @@
             <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
               <div class="flex items-center justify-between mb-4">
                 <span class="material-symbols-outlined text-4xl text-emerald-600">pending_actions</span>
-                <span class="text-2xl font-bold text-emerald-900">$1,250</span>
+                <span class="text-2xl font-bold text-emerald-900">
+                  ${{ totalPendingAmount.toFixed(2) }}
+                </span>
               </div>
               <p class="text-sm text-gray-600">Pending Payments</p>
             </div>
             <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
               <div class="flex items-center justify-between mb-4">
                 <span class="material-symbols-outlined text-4xl text-emerald-600">receipt_long</span>
-                <span class="text-2xl font-bold text-emerald-900">8</span>
+                <span class="text-2xl font-bold text-emerald-900">{{ totalInvoices }}</span>
               </div>
               <p class="text-sm text-gray-600">Total Invoices</p>
             </div>
@@ -78,23 +185,36 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
-                    <td class="p-4">#INV-2024-001</td>
-                    <td class="p-4">2024-02-15</td>
-                    <td class="p-4">$750.00</td>
+                  <tr
+                    v-for="invoice in invoices"
+                    :key="invoice.id"
+                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
+                  >
+                    <td class="p-4">#INV-{{ invoice.id }}</td>
+                    <td class="p-4">{{ new Date().toLocaleDateString() }}</td> <!-- replace if API includes date -->
+                    <td class="p-4">${{ invoice.amount.toFixed(2) }}</td>
                     <td class="p-4">
-                      <span class="px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-800">Pending</span>
+                      <span
+                        :class="[
+                          'px-3 py-1 rounded-full text-sm',
+                          invoice.status === 'Paid'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800',
+                        ]"
+                      >
+                        {{ invoice.status }}
+                      </span>
                     </td>
-                    <td class="p-4">General checkup and blood tests</td>
-                  </tr>
-                  <tr class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
-                    <td class="p-4">#INV-2024-002</td>
-                    <td class="p-4">2024-02-10</td>
-                    <td class="p-4">$500.00</td>
-                    <td class="p-4">
-                      <span class="px-3 py-1 rounded-full text-sm bg-emerald-100 text-emerald-800">Paid</span>
+                    <td class="p-4 flex justify-between items-center">
+                      {{ invoice.description }}
+                      <button
+                        v-if="invoice.status !== 'Paid'"
+                        class="ml-4 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded"
+                        @click="generatePaymentLink(invoice.id, '0912345678')" <!-- Replace with actual phone -->
+                      >
+                        Pay
+                      </button>
                     </td>
-                    <td class="p-4">Consultation and prescription</td>
                   </tr>
                 </tbody>
               </table>

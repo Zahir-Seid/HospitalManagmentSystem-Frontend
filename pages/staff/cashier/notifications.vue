@@ -1,5 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useNotifications } from '~/composables/useNotifications';
+const { unreadCount } = useNotifications();
+
+const { handleLogout } = useAuth()
+// Function to get a cookie value by name
+const getCookie = (name: string) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
@@ -16,8 +27,19 @@ const selectedNotifications = ref<number[]>([]);
 
 // Fetch notifications
 const fetchNotifications = async () => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Add token from cookies
+        },
+      }
+    : {};
+
   try {
-    const response = await fetch(`${apiBase}/notifications/list`);
+    const response = await fetch(`${apiBase}/notifications/list`, authHeaders);
     const data = await response.json();
     notifications.value = data;
   } catch (error) {
@@ -45,9 +67,21 @@ const markSelectedRead = async () => {
 
 // Helper method to mark a single notification as read
 const markAsRead = async (notificationId: number) => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Add token from cookies
+        },
+      }
+    : {};
+
   try {
     await fetch(`${apiBase}/notifications/mark-read/${notificationId}`, {
       method: 'PUT',
+      headers: authHeaders.headers, // Add headers for auth
     });
     notifications.value = notifications.value.map((notification) =>
       notification.id === notificationId ? { ...notification, read: true } : notification
@@ -72,9 +106,21 @@ const deleteSelected = async () => {
 
 // Helper method to delete a notification
 const deleteNotification = async (notificationId: number) => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Add token from cookies
+        },
+      }
+    : {};
+
   try {
     await fetch(`${apiBase}/notifications/delete/${notificationId}`, {
       method: 'DELETE',
+      headers: authHeaders.headers, // Add headers for auth
     });
   } catch (error) {
     console.error('Error deleting notification:', error);
@@ -135,7 +181,22 @@ onMounted(() => {
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
+            <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.

@@ -1,6 +1,95 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRuntimeConfig } from '#imports';
+import { useNotifications } from '~/composables/useNotifications';
+
+const { unreadCount } = useNotifications();
+import { useAuth } from '~/composables/useAuth';
+const { handleLogout } = useAuth();
+
+// Get access token from cookies
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+const prescriptions = ref([]);
+const loading = ref(true);
+const showModal = ref(false);
+const selectedPrescription = ref(null);
+const inputPrice = ref('');
+
+const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+const authHeaders = accessToken
+  ? {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  : {};
+
+// Fetch prescriptions
+const fetchPrescriptions = async () => {
+  try {
+    loading.value = true;
+    const response = await $fetch(`${apiBase}/pharmacy/list`, {
+      ...authHeaders,
+    });
+    prescriptions.value = response;
+  } catch (error) {
+    console.error('Failed to fetch prescriptions:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Mark prescription as "Dispensed"
+const markAsDispensed = async (id, price) => {
+  try {
+    await $fetch(`${apiBase}/pharmacy/update/${id}`, {
+      method: 'PUT',
+      body: { status: 'Dispensed', price: price },
+      ...authHeaders,
+    });
+    fetchPrescriptions(); // Refresh the list
+  } catch (error) {
+    console.error('Failed to update prescription:', error);
+  }
+};
+const openPriceModal = (prescription) => {
+  selectedPrescription.value = prescription;
+  inputPrice.value = '';
+  showModal.value = true;
+};
+
+const confirmDispense = async () => {
+  if (!inputPrice.value || isNaN(parseFloat(inputPrice.value))) {
+    alert('Please enter a valid price.');
+    return;
+  }
+
+  try {
+    await markAsDispensed(selectedPrescription.value.id, parseFloat(inputPrice.value));
+    showModal.value = false;
+  } catch (error) {
+    console.error('Error dispensing:', error);
+  }
+};
+
+// Init
+onMounted(() => {
+  fetchPrescriptions();
+});
+</script>
+
 <template
   ><div id="webcrumbs">
-    <div class="w-[1280px] font-sans">
+    <div class="w-[1800px] font-sans">
       <div class="flex min-h-screen">
         <aside
           class="w-64 bg-emerald-900 p-6 flex flex-col justify-between h-screen sticky top-0"
@@ -10,20 +99,10 @@
               <span class="material-symbols-outlined mr-2 text-2xl"
                 >local_pharmacy</span
               >
-              Pharmacy Dashboard
+              <a href="/staff/pharmacist/dashboard">Pharmacy Dashboard</a>
             </div>
             <a
-              href="/pharmacy/prescriptions"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
-            >
-              <span
-                class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
-                >medication</span
-              >
-              Prescriptions
-            </a>
-            <a
-              href="/pharmacy/drugs"
+              href="/staff/pharmacist/inventory"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
               <span
@@ -34,7 +113,7 @@
             </a>
             <div class="pt-4 border-t border-emerald-800 mt-4"></div>
             <a
-              href="/pharmacy/notifications"
+              href="/staff/pharmacist/notifications"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
               <span
@@ -43,12 +122,14 @@
               >
               Notifications
               <span
-                class="ml-auto bg-emerald-600 text-white text-xs px-2 py-1 rounded-full group-hover:bg-white group-hover:text-emerald-800 transition-colors"
-                >3</span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
               >
+                {{ unreadCount }}
+              </span>
             </a>
             <a
-              href="/pharmacy/inbox"
+              href="/staff/pharmacist/inbox"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
               <span
@@ -58,7 +139,7 @@
               Inbox
             </a>
             <a
-              href="/pharmacy/attendance"
+              href="/staff/pharmacist/attendance"
               class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
               <span
@@ -67,6 +148,15 @@
               >
               Attendance
             </a>
+            <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
           <div
             class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"
@@ -75,436 +165,127 @@
           </div>
         </aside>
         <main class="flex-1 p-6 bg-gray-50">
-          <header class="mb-6">
-            <div class="flex justify-between items-center">
-              <h1 class="text-2xl font-bold text-emerald-900">
-                Welcome, Dr. Sarah
-              </h1>
-              <div class="flex items-center space-x-4">
-                <div class="relative group">
-                  <button
-                    class="p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
-                  >
-                    <span class="material-symbols-outlined text-emerald-600"
-                      >notifications</span
-                    >
-                    <span
-                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
-                      >3</span
-                    >
-                  </button>
-                </div>
-                <div
-                  class="bg-white p-1 rounded-full shadow-md hover:shadow-lg transition-all"
-                >
-                  <img
-                    src="https://randomuser.me/api/portraits/women/45.jpg"
-                    alt="User"
-                    class="h-8 w-8 rounded-full"
-                  />
-                </div>
-              </div>
-            </div>
-          </header>
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div
-              class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-4 border-l-4 border-emerald-500"
-            >
-              <div class="flex items-center">
-                <div class="p-3 bg-emerald-100 rounded-lg">
-                  <span class="material-symbols-outlined text-emerald-600"
-                    >medication</span
-                  >
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-500">Pending Prescriptions</p>
-                  <h3 class="text-2xl font-bold">24</h3>
-                </div>
-              </div>
-            </div>
-            <div
-              class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-4 border-l-4 border-amber-500"
-            >
-              <div class="flex items-center">
-                <div class="p-3 bg-amber-100 rounded-lg">
-                  <span class="material-symbols-outlined text-amber-600"
-                    >inventory</span
-                  >
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-500">Low Stock Items</p>
-                  <h3 class="text-2xl font-bold">7</h3>
-                </div>
-              </div>
-            </div>
-            <div
-              class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-4 border-l-4 border-red-500"
-            >
-              <div class="flex items-center">
-                <div class="p-3 bg-red-100 rounded-lg">
-                  <span class="material-symbols-outlined text-red-600"
-                    >event_busy</span
-                  >
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm text-gray-500">Expiring Medications</p>
-                  <h3 class="text-2xl font-bold">12</h3>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-            <div
-              class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl mb-6"
-            >
+            <header class="mb-6">
               <div class="flex justify-between items-center">
-                <h3 class="text-xl font-bold text-emerald-900">
-                  Active Prescriptions
-                </h3>
-                <button
-                  class="bg-emerald-600 text-white px-4 py-2 rounded-full hover:bg-emerald-700 transition-colors flex items-center"
-                >
-                  <span class="material-symbols-outlined align-middle mr-2"
-                    >refresh</span
-                  >
-                  Refresh List
-                </button>
+                <h1 class="text-2xl font-bold text-emerald-900">Welcome</h1>
               </div>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-emerald-50">
-                  <tr>
-                    <th class="p-4 text-left text-emerald-700">Medication</th>
-                    <th class="p-4 text-left text-emerald-700">Doctor</th>
-                    <th class="p-4 text-left text-emerald-700">Patient</th>
-                    <th class="p-4 text-left text-emerald-700">Dosage</th>
-                    <th class="p-4 text-left text-emerald-700">Status</th>
-                    <th class="p-4 text-left text-emerald-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Amoxicillin</td>
-                    <td class="p-4">Dr. John Smith</td>
-                    <td class="p-4">Michael Johnson</td>
-                    <td class="p-4">500mg, 3x daily</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-amber-100 text-amber-800"
-                        >Pending</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <button
-                        class="text-emerald-600 hover:text-emerald-700 transition-colors mr-2 hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined"
-                          >check_circle</span
-                        >
-                      </button>
-                      <button
-                        class="text-gray-500 hover:text-gray-700 transition-colors hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined">info</span>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Lisinopril</td>
-                    <td class="p-4">Dr. Emily Chen</td>
-                    <td class="p-4">Sarah Williams</td>
-                    <td class="p-4">10mg, daily</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800"
-                        >Dispensed</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <button
-                        class="text-emerald-600 hover:text-emerald-700 transition-colors mr-2 opacity-50 cursor-not-allowed"
-                      >
-                        <span class="material-symbols-outlined"
-                          >check_circle</span
-                        >
-                      </button>
-                      <button
-                        class="text-gray-500 hover:text-gray-700 transition-colors hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined">info</span>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Metformin</td>
-                    <td class="p-4">Dr. Robert Lee</td>
-                    <td class="p-4">James Brown</td>
-                    <td class="p-4">850mg, 2x daily</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-amber-100 text-amber-800"
-                        >Pending</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <button
-                        class="text-emerald-600 hover:text-emerald-700 transition-colors mr-2 hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined"
-                          >check_circle</span
-                        >
-                      </button>
-                      <button
-                        class="text-gray-500 hover:text-gray-700 transition-colors hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined">info</span>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Atorvastatin</td>
-                    <td class="p-4">Dr. Maria Garcia</td>
-                    <td class="p-4">David Miller</td>
-                    <td class="p-4">20mg, daily at night</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-red-100 text-red-800"
-                        >Expired</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <button
-                        class="text-emerald-600 hover:text-emerald-700 transition-colors mr-2 opacity-50 cursor-not-allowed"
-                      >
-                        <span class="material-symbols-outlined"
-                          >check_circle</span
-                        >
-                      </button>
-                      <button
-                        class="text-gray-500 hover:text-gray-700 transition-colors hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined">info</span>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="flex justify-between items-center mt-6">
-              <div class="text-sm text-gray-500">
-                Showing 4 of 24 prescriptions
-              </div>
-              <div class="flex space-x-2">
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  <span class="material-symbols-outlined text-sm"
-                    >chevron_left</span
-                  >
-                </button>
-                <button
-                  class="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
-                >
-                  1
-                </button>
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  2
-                </button>
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  3
-                </button>
-                <button
-                  class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors"
-                >
-                  <span class="material-symbols-outlined text-sm"
-                    >chevron_right</span
-                  >
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="bg-white rounded-xl shadow-lg p-6">
-            <div
-              class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl mb-6"
-            >
-              <div class="flex justify-between items-center flex-wrap gap-4">
-                <h3 class="text-xl font-bold text-emerald-900">
-                  Low Stock Medications
-                </h3>
-                <div class="flex gap-4">
-                  <div class="relative">
-                    <span
-                      class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                      >search</span
-                    >
-                    <input
-                      type="text"
-                      placeholder="Search drugs..."
-                      class="border border-emerald-200 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
-                  </div>
+            </header>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+              <div class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl mb-6">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-xl font-bold text-emerald-900">Active Prescriptions</h3>
                   <button
+                    @click="fetchPrescriptions"
                     class="bg-emerald-600 text-white px-4 py-2 rounded-full hover:bg-emerald-700 transition-colors flex items-center"
                   >
-                    <span class="material-symbols-outlined align-middle mr-2"
-                      >add</span
+                    <span class="material-symbols-outlined align-middle mr-2">refresh</span> Refresh List
+                  </button>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-emerald-50">
+                    <tr>
+                      <th class="p-4 text-left text-emerald-700">Medication</th>
+                      <th class="p-4 text-left text-emerald-700">Doctor</th>
+                      <th class="p-4 text-left text-emerald-700">Patient</th>
+                      <th class="p-4 text-left text-emerald-700">Dosage</th>
+                      <th class="p-4 text-left text-emerald-700">Status</th>
+                      <th class="p-4 text-left text-emerald-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="prescription in prescriptions"
+                      :key="prescription.id"
+                      class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
                     >
-                    New Drug
+                      <td class="p-4 font-semibold">{{ prescription.medication_name }}</td>
+                      <td class="p-4">{{ prescription.doctor }}</td>
+                      <td class="p-4">{{ prescription.patient }}</td>
+                      <td class="p-4">{{ prescription.dosage }}</td>
+                      <td class="p-4">
+                        <span
+                          :class="[
+                            'px-3 py-1 rounded-full',
+                            prescription.status === 'Dispensed'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : prescription.status === 'Expired'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-amber-100 text-amber-800'
+                          ]"
+                        >
+                          {{ prescription.status }}
+                        </span>
+                      </td>
+                      <td class="p-4">
+                        <button
+  :disabled="prescription.status.toLowerCase() !== 'pending'"
+  @click="openPriceModal(prescription)"
+  class="text-emerald-600 hover:text-emerald-700 transition-colors mr-2"
+  :class="{
+    'opacity-50 cursor-not-allowed': prescription.status.toLowerCase() !== 'pending',
+    'hover:scale-110 transform': prescription.status.toLowerCase() === 'pending'
+  }"
+>
+  <span class="material-symbols-outlined">check_circle</span>
+</button>
+
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Pagination (optional) -->
+              <div class="flex justify-between items-center mt-6">
+                <div class="text-sm text-gray-500">Showing 1 of 10 prescriptions</div>
+                <div class="flex space-x-2">
+                  <button class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors">
+                    <span class="material-symbols-outlined text-sm">chevron_left</span>
+                  </button>
+                  <button class="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors">1</button>
+                  <button class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors">2</button>
+                  <button class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors">3</button>
+                  <button class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors">
+                    <span class="material-symbols-outlined text-sm">chevron_right</span>
                   </button>
                 </div>
               </div>
             </div>
-            <div class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-emerald-50">
-                  <tr>
-                    <th class="p-4 text-left text-emerald-700">Medication</th>
-                    <th class="p-4 text-left text-emerald-700">Category</th>
-                    <th class="p-4 text-left text-emerald-700">
-                      Current Stock
-                    </th>
-                    <th class="p-4 text-left text-emerald-700">Expiry Date</th>
-                    <th class="p-4 text-left text-emerald-700">Status</th>
-                    <th class="p-4 text-left text-emerald-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Amoxicillin 500mg</td>
-                    <td class="p-4">Antibiotics</td>
-                    <td class="p-4">
-                      <div class="flex items-center">
-                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div
-                            class="bg-red-500 h-2 rounded-full"
-                            style="width: 15%"
-                          ></div>
-                        </div>
-                        <span>15</span>
-                      </div>
-                    </td>
-                    <td class="p-4">Dec 15, 2025</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-red-100 text-red-800"
-                        >Critical</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <button
-                        class="text-emerald-600 hover:text-emerald-700 transition-colors mr-2 hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined"
-                          >add_shopping_cart</span
-                        >
-                      </button>
-                      <button
-                        class="text-gray-500 hover:text-gray-700 transition-colors hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined">edit</span>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Metformin 850mg</td>
-                    <td class="p-4">Antidiabetic</td>
-                    <td class="p-4">
-                      <div class="flex items-center">
-                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div
-                            class="bg-amber-500 h-2 rounded-full"
-                            style="width: 30%"
-                          ></div>
-                        </div>
-                        <span>30</span>
-                      </div>
-                    </td>
-                    <td class="p-4">Jul 10, 2026</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-amber-100 text-amber-800"
-                        >Low</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <button
-                        class="text-emerald-600 hover:text-emerald-700 transition-colors mr-2 hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined"
-                          >add_shopping_cart</span
-                        >
-                      </button>
-                      <button
-                        class="text-gray-500 hover:text-gray-700 transition-colors hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined">edit</span>
-                      </button>
-                    </td>
-                  </tr>
-                  <tr
-                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
-                  >
-                    <td class="p-4 font-semibold">Atorvastatin 20mg</td>
-                    <td class="p-4">Lipid-lowering</td>
-                    <td class="p-4">
-                      <div class="flex items-center">
-                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                          <div
-                            class="bg-red-500 h-2 rounded-full"
-                            style="width: 10%"
-                          ></div>
-                        </div>
-                        <span>10</span>
-                      </div>
-                    </td>
-                    <td class="p-4">Nov 22, 2025</td>
-                    <td class="p-4">
-                      <span
-                        class="px-3 py-1 rounded-full bg-red-100 text-red-800"
-                        >Critical</span
-                      >
-                    </td>
-                    <td class="p-4">
-                      <button
-                        class="text-emerald-600 hover:text-emerald-700 transition-colors mr-2 hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined"
-                          >add_shopping_cart</span
-                        >
-                      </button>
-                      <button
-                        class="text-gray-500 hover:text-gray-700 transition-colors hover:scale-110 transform"
-                      >
-                        <span class="material-symbols-outlined">edit</span>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </main>
+          </main>
+          <!-- Price Input Modal -->
+<div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+  <div class="bg-white p-6 rounded shadow-lg w-96">
+    <h2 class="text-lg font-bold mb-4 text-emerald-900">Enter Dispense Price</h2>
+    <input
+      v-model="inputPrice"
+      type="number"
+      placeholder="Enter price"
+      class="w-full p-2 border border-gray-300 rounded mb-4"
+    />
+    <div class="flex justify-end space-x-2">
+      <button
+        @click="showModal = false"
+        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+      >
+        Cancel
+      </button>
+      <button
+        @click="confirmDispense"
+        class="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded"
+      >
+        Confirm
+      </button>
+    </div>
+  </div>
+</div>
+
       </div>
     </div>
-  </div></template
->
+  </div>
+</template>
 
 <style scoped>
   @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);

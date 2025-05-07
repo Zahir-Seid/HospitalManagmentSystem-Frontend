@@ -1,9 +1,34 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useAuth } from '~/composables/useAuth';
+import { usePatients } from '~/composables/usePatients';
+import { useDoctors } from '~/composables/useDoctors';
+import { useNotifications } from '~/composables/useNotifications';
+
+const { unreadCount } = useNotifications();
+const { handleLogout, getUser } = useAuth();
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
 
-// Refs for form fields
+// Get current user's doctor ID
+const currentUser = getUser();
+const currentDoctorId = computed(() => currentUser ? currentUser.user_id : null);
+
+// Patients for the current doctor
+const { patientData, loading: patientLoading, error: patientError } = usePatients(currentDoctorId.value);
+
+// Doctors list
+const { doctors, fetchAllDoctors, loading: doctorLoading, error: doctorError } = useDoctors();
+
+// Cookie utility
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
+// Form fields
 const selectedPatient = ref('');
 const selectedDoctor = ref('');
 const reason = ref('');
@@ -11,11 +36,21 @@ const reason = ref('');
 // Auth headers
 const authHeaders = {
   headers: {
-    Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+    Authorization: `Bearer ${typeof window !== 'undefined' ? getCookie('access_token') : ''}`,
   },
 };
 
-// Handle referral submission
+// Fetch doctors on mount
+onMounted(() => {
+  fetchAllDoctors();
+});
+
+const filteredDoctors = computed(() =>
+  doctors.value?.filter((doctor) => doctor.id !== currentDoctorId.value)
+);
+
+
+// Submit referral
 const submitReferral = async () => {
   if (!selectedPatient.value || !selectedDoctor.value || !reason.value.trim()) {
     alert('Please fill in all required fields.');
@@ -29,14 +64,13 @@ const submitReferral = async () => {
       reason: reason.value.trim(),
     };
 
-    const response = await $fetch(`${apiBase}/api/patients/refer`, {
+    const response = await $fetch(`${apiBase}/patients/refer`, {
       method: 'POST',
       body: payload,
       ...authHeaders,
     });
 
     alert('Referral submitted successfully!');
-    // Clear form
     selectedPatient.value = '';
     selectedDoctor.value = '';
     reason.value = '';
@@ -53,10 +87,13 @@ const submitReferral = async () => {
         <aside
         class="w-64 bg-emerald-900 p-6 flex flex-col justify-between h-screen sticky top-0"
       >
-        <nav class="space-y-4">
-          <div class="text-white text-xl font-bold mb-8">Doctor Dashboard</div>
+      <nav class="space-y-4">
+          <div class="text-white text-xl font-bold mb-8"><a href="/staff/doctor/dashboard">Doctor Dashboard</a></div>
+          <a href="/staff/doctor/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
+                      <span class="material-symbols-outlined mr-2">event</span> Appointments 
+          </a>
           <a
-            href="staff/doctor/prescriptions"
+            href="/staff/doctor/prescriptions"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -66,7 +103,7 @@ const submitReferral = async () => {
             Prescriptions
           </a>
           <a
-            href="staff/doctor/referrals"
+            href="/staff/doctor/referrals"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -76,7 +113,7 @@ const submitReferral = async () => {
             Patient Referrals
           </a>
           <a
-            href="staff/doctor/chat"
+            href="/staff/doctor/chat"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -86,17 +123,20 @@ const submitReferral = async () => {
             Chat
           </a>
           <a
-            href="staff/doctor/notifications"
+            href="/staff/doctor/notifications"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
-            <span
-              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
-              >notifications</span
-            >
-            Notifications
+          <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
           </a>
           <a
-            href="staff/doctor/inbox"
+            href="/staff/doctor/inbox"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -106,7 +146,7 @@ const submitReferral = async () => {
             Inbox
           </a>
           <a
-            href="staff/doctor/attendance"
+            href="/staff/doctor/attendance"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -114,6 +154,15 @@ const submitReferral = async () => {
               >schedule</span
             >
             Attendance
+          </a>
+          <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
           </a>
         </nav>
         <div
@@ -135,51 +184,56 @@ const submitReferral = async () => {
           </h2>
           <form class="space-y-6" @submit.prevent="submitReferral">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Patient Select -->
-                <div>
+              <!-- Patient Select -->
+              <div>
                 <label for="patient" class="block text-sm font-medium text-gray-700 mb-1">Patient</label>
                 <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">
                     <span class="material-symbols-outlined text-gray-400">person</span>
-                    </span>
-                    <select
+                  </span>
+                  <select
                     id="patient"
                     v-model="selectedPatient"
                     class="pl-10 block w-full rounded-md border-gray-300 border py-2 px-3 focus:border-emerald-500 focus:ring-emerald-500 shadow-sm"
-                    >
+                    :disabled="patientLoading"
+                  >
                     <option value="">Select Patient</option>
-                    <option value="1">Abebe Kebede (ID: 0012)</option>
-                    <option value="2">Sara Mohammed (ID: 0024)</option>
-                    <option value="3">Daniel Tadesse (ID: 0036)</option>
-                    <option value="4">Fatima Ibrahim (ID: 0048)</option>
-                    <option value="5">Yonas Haile (ID: 0060)</option>
-                    </select>
+                    <option v-for="patient in patientData" :key="patient.id" :value="patient.id">
+                      {{ patient.patient }} (ID: {{ patient.id }})
+                    </option>
+                  </select>
+                  <p v-if="patientLoading" class="mt-2 text-sm text-emerald-500">Loading patients...</p>
+                  <p v-if="patientError" class="mt-2 text-sm text-red-500">{{ patientError }}</p>
                 </div>
-                </div>
+              </div>
 
-                <!-- Doctor Select -->
-                <div>
+              <!-- Doctor Select -->
+              <div>
                 <label for="referred_to" class="block text-sm font-medium text-gray-700 mb-1">Refer To Doctor</label>
                 <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span class="material-symbols-outlined text-gray-400">medical_services</span>
-                    </span>
-                    <select
+                  </span>
+                  <select
                     id="referred_to"
                     v-model="selectedDoctor"
                     class="pl-10 block w-full rounded-md border-gray-300 border py-2 px-3 focus:border-emerald-500 focus:ring-emerald-500 shadow-sm"
-                    >
+                    :disabled="doctorLoading"
+                  >
                     <option value="">Select Doctor</option>
-                    <option value="1">Dr. Tewodros Alemu - Cardiologist</option>
-                    <option value="2">Dr. Zewditu Haile - Neurologist</option>
-                    <option value="3">Dr. Mekonnen Abebe - Orthopedic</option>
-                    <option value="4">Dr. Tigist Bekele - Dermatologist</option>
-                    <option value="5">Dr. Solomon Taye - Ophthalmologist</option>
-                    </select>
+                    <option
+                      v-for="doctor in filteredDoctors"
+                      :key="doctor.id"
+                      :value="doctor.id"
+                    >
+                      Dr. {{ doctor.full_name }} - {{ doctor.department }}
+                    </option>
+                  </select>
+                  <p v-if="doctorLoading" class="mt-2 text-sm text-emerald-500">Loading doctors...</p>
+                  <p v-if="doctorError" class="mt-2 text-sm text-red-500">{{ doctorError }}</p>
                 </div>
-                </div>
+              </div>
             </div>
-
             <!-- Reason Textarea -->
             <div>
                 <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">Reason for Referral</label>
@@ -207,12 +261,11 @@ const submitReferral = async () => {
                 </button>
             </div>
             </form>
-
         </div>
       </main>
     </div>
-  </div></template
->
+  </div>
+</template>
 
 <style scoped>
   @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);

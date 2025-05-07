@@ -1,143 +1,133 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useDoctors } from '~/composables/useDoctors';
+import { useNotifications } from '~/composables/useNotifications';
+import { useAuth } from '~/composables/useAuth';
+
+const {handleLogout} = useAuth();
+const { unreadCount } = useNotifications();
+const { doctors, loading, fetchAllDoctors } = useDoctors();
+const router = useRouter();
+
+onMounted(async () => {
+  await fetchAllDoctors();
+});
+
+const activeSocket = ref<WebSocket | null>(null);
+
+const getCookie = (name: string): string | null => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
+  return null;
+};
+
+const startChat = (receiverId: number) => {
+  const token = getCookie('access_token');
+  if (!token) {
+    alert('You must be logged in to chat.');
+    return;
+  }
+
+  const wsUrl = `ws://localhost:8000/ws/chat/?token=${token}&receiver_id=${receiverId}`;
+  const socket = new WebSocket(wsUrl);
+  activeSocket.value = socket;
+
+  socket.onopen = () => {
+    console.log('WebSocket connected');
+    // You can show a chat modal or input UI here
+  };
+
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log('New message:', data);
+    // Bind this to your chat messages UI
+  };
+
+  socket.onclose = () => {
+    console.log('WebSocket disconnected');
+    activeSocket.value = null;
+  };
+
+  socket.onerror = (error) => {
+    console.error('WebSocket error:', error);
+  };
+  
+  router.push({ path: '/patient/chatroom', query: { receiver_id: receiverId } });
+};
+</script>
+
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
       <div class="flex h-full">
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
-            <a href="/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">person</span>
-              Profile
+            <div class="text-white text-xl font-bold mb-8"><a href="/patient/dashboard" >Patient Dashboard </a></div>
+            <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
-            <a href="/medical-history" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">medical_services</span>
-              Medical History
+            <a href="/patient/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">event</span> Appointments
             </a>
-            <a href="/billing" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">receipt</span>
-              Billing
+            <a href="/patient/medicalhistory" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">medical_services</span> Medical History
             </a>
-            <div class="relative">
-              <details class="group">
-                <summary class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 cursor-pointer">
-                  <span class="material-symbols-outlined mr-2">notifications</span>
-                  Notifications
-                  <span class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">5</span>
-                  <span class="material-symbols-outlined ml-auto group-open:rotate-180 transition-transform">expand_more</span>
-                </summary>
-                <div class="absolute left-0 w-72 mt-2 bg-white rounded-lg shadow-xl overflow-hidden z-50">
-                  <div class="p-4 border-b border-gray-100">
-                    <div class="flex justify-between items-center">
-                      <h3 class="text-emerald-900 font-semibold">Notifications</h3>
-                      <button class="text-sm text-emerald-600 hover:text-emerald-700">Mark all as read</button>
-                    </div>
-                  </div>
-                  <div class="max-h-64 overflow-y-auto">
-                    <div class="p-4 hover:bg-emerald-50 border-b border-gray-100 transition-colors">
-                      <div class="flex items-start space-x-3">
-                        <input type="checkbox" class="mt-1.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
-                        <div class="flex-1">
-                          <div class="flex items-start">
-                            <span class="material-symbols-outlined text-emerald-600 mr-3">calendar_today</span>
-                            <div>
-                              <p class="text-sm text-gray-800">Appointment reminder: Dr. Smith tomorrow at 10:00 AM</p>
-                              <p class="text-xs text-gray-500 mt-1">2 hours ago</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="p-4 hover:bg-emerald-50 border-b border-gray-100 transition-colors">
-                      <div class="flex items-start space-x-3">
-                        <input type="checkbox" class="mt-1.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
-                        <div class="flex-1">
-                          <div class="flex items-start">
-                            <span class="material-symbols-outlined text-emerald-600 mr-3">lab_profile</span>
-                            <div>
-                              <p class="text-sm text-gray-800">Lab results are ready for review</p>
-                              <p class="text-xs text-gray-500 mt-1">1 day ago</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="p-4 bg-emerald-50 flex justify-between">
-                    <button class="text-sm text-red-600 hover:text-red-700 flex items-center">
-                      <span class="material-symbols-outlined mr-1">delete</span>
-                      Delete Selected
-                    </button>
-                    <button class="text-sm text-emerald-600 hover:text-emerald-700 flex items-center">
-                      <span class="material-symbols-outlined mr-1">check_circle</span>
-                      Mark Selected as Read
-                    </button>
-                  </div>
-                </div>
-              </details>
-            </div>
-            <a href="/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">chat</span>
-              Chat
+            <a href="/patient/bills" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
-            <a href="/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">comment</span>
-              Feedback
+            <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
+            </a>
+            <a href="/patient/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">chat</span> Chat
+            </a>
+            <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">comment</span> Feedback
+            </a>
+            <a @click.prevent="handleLogout" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">logout</span> LogOut
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
           </div>
         </aside>
+
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
           <div class="bg-white rounded-xl shadow-lg h-full p-6">
             <h2 class="text-2xl font-bold text-emerald-900 mb-6">Available Doctors</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100">
+
+            <div v-if="loading" class="text-gray-500">Loading doctors...</div>
+
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div
+                v-for="doctor in doctors"
+                :key="doctor.id"
+                class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100"
+              >
                 <div class="p-6">
                   <div class="flex items-center space-x-4 mb-4">
                     <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-300">
                       <span class="material-symbols-outlined text-emerald-600">person</span>
                     </div>
                     <div>
-                      <h3 class="text-lg font-semibold">Dr. Smith</h3>
-                      <p class="text-sm text-gray-500">Cardiologist</p>
+                      <h3 class="text-lg font-semibold">Dr. {{ doctor.full_name }}</h3>
+                      <p class="text-sm text-gray-500">{{ doctor.department || 'General' }}</p>
                     </div>
                   </div>
-                  <button class="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center space-x-2">
-                    <span class="material-symbols-outlined">chat</span>
-                    <span>Start Chat</span>
-                  </button>
-                </div>
-              </div>
-              <div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100">
-                <div class="p-6">
-                  <div class="flex items-center space-x-4 mb-4">
-                    <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-300">
-                      <span class="material-symbols-outlined text-emerald-600">person</span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">Dr. Johnson</h3>
-                      <p class="text-sm text-gray-500">Neurologist</p>
-                    </div>
-                  </div>
-                  <button class="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center space-x-2">
-                    <span class="material-symbols-outlined">chat</span>
-                    <span>Start Chat</span>
-                  </button>
-                </div>
-              </div>
-              <div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-100">
-                <div class="p-6">
-                  <div class="flex items-center space-x-4 mb-4">
-                    <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-300">
-                      <span class="material-symbols-outlined text-emerald-600">person</span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">Dr. Davis</h3>
-                      <p class="text-sm text-gray-500">Pediatrician</p>
-                    </div>
-                  </div>
-                  <button class="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center space-x-2">
+                  <button
+                    @click="startChat(doctor.id)"
+                    class="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-all duration-300 transform hover:scale-[1.02] flex items-center justify-center space-x-2"
+                  >
                     <span class="material-symbols-outlined">chat</span>
                     <span>Start Chat</span>
                   </button>

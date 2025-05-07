@@ -1,4 +1,18 @@
 <script setup>
+import { ref, onMounted } from 'vue';
+import { useNotifications } from '~/composables/useNotifications';
+import { useAuth } from '~/composables/useAuth';
+
+const {handleLogout} = useAuth();
+const { unreadCount } = useNotifications();
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 const router = useRouter();
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
@@ -7,12 +21,25 @@ const medicalHistory = ref(null);
 const loading = ref(true);
 const errorMessage = ref('');
 
+// Fetch medical history
 const fetchMedicalHistory = async () => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Add token from cookies
+        },
+      }
+    : {};
+
   try {
-    const response = await $fetch(`${apiBase}/patients/history/medical`);
+    const response = await $fetch(`${apiBase}/patients/history/medical`, authHeaders);
     medicalHistory.value = response;
   } catch (error) {
     errorMessage.value = 'Failed to load medical history. Please try again.';
+    console.error('Error fetching medical history:', error);
   } finally {
     loading.value = false;
   }
@@ -22,13 +49,14 @@ const fetchMedicalHistory = async () => {
 onMounted(fetchMedicalHistory);
 </script>
 
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
       <div class="flex h-full">
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
+            <div class="text-white text-xl font-bold mb-8"><a href="/patient/dashboard" >Patient Dashboard </a></div>
             <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
@@ -42,14 +70,23 @@ onMounted(fetchMedicalHistory);
               <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
             <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
-              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+              <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
-            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">chat</span> Chat
             </a>
             <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">comment</span> Feedback
+            </a>
+            <a @click.prevent="handleLogout" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">logout</span> LogOut
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -60,17 +97,13 @@ onMounted(fetchMedicalHistory);
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
           <div class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-xl mb-8 flex flex-col md:flex-row justify-between items-center">
             <h2 class="text-2xl font-bold text-emerald-900 mb-4 md:mb-0">Medical History</h2>
-            <button class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-all duration-300 hover:scale-105 flex items-center">
-              <span class="material-symbols-outlined mr-2">download</span> Download PDF Report
-            </button>
           </div>
-
           <div v-if="loading" class="text-center text-emerald-700">Loading medical history...</div>
           <div v-else-if="errorMessage" class="text-center text-red-500">{{ errorMessage }}</div>
 
           <template v-else>
             <!-- Lab Tests -->
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 mb-8">
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 mb-8" v-if="medicalHistory.lab_tests.length">
               <div class="bg-emerald-50 p-4 border-b border-emerald-100">
                 <h3 class="text-lg font-semibold text-emerald-900">Lab Test Results</h3>
               </div>
@@ -87,7 +120,7 @@ onMounted(fetchMedicalHistory);
                     <tr v-for="test in medicalHistory.lab_tests" :key="test.id" class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
                       <td class="p-4">{{ test.test_name }}</td>
                       <td class="p-4">{{ test.status }}</td>
-                      <td class="p-4">{{ test.result }}</td>
+                      <td class="p-4">{{ test.result || 'N/A' }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -95,7 +128,7 @@ onMounted(fetchMedicalHistory);
             </div>
 
             <!-- Prescriptions -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" v-if="medicalHistory.prescriptions.length">
               <div v-for="prescription in medicalHistory.prescriptions" :key="prescription.id" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
                 <div class="flex justify-between items-start mb-4">
                   <h4 class="text-emerald-900 font-semibold">{{ prescription.medication_name }}</h4>
@@ -103,6 +136,35 @@ onMounted(fetchMedicalHistory);
                 </div>
                 <p class="text-sm text-gray-600 mb-2">Prescribed by: {{ prescription.doctor }}</p>
                 <p class="text-sm text-gray-600">{{ prescription.dosage }} — {{ prescription.instructions }}</p>
+              </div>
+            </div>
+
+            <!-- Appointments -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 mb-8" v-if="medicalHistory.appointments.length">
+              <div class="bg-emerald-50 p-4 border-b border-emerald-100">
+                <h3 class="text-lg font-semibold text-emerald-900">Appointments</h3>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-emerald-50">
+                    <tr>
+                      <th class="p-4 text-left text-emerald-700">Doctor</th>
+                      <th class="p-4 text-left text-emerald-700">Date</th>
+                      <th class="p-4 text-left text-emerald-700">Time</th>
+                      <th class="p-4 text-left text-emerald-700">Reason</th>
+                      <th class="p-4 text-left text-emerald-700">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="appointment in medicalHistory.appointments" :key="appointment.id" class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
+                      <td class="p-4">{{ appointment.doctor }}</td>
+                      <td class="p-4">{{ new Date(appointment.date).toLocaleDateString() }}</td>
+                      <td class="p-4">{{ appointment.time }}</td>
+                      <td class="p-4">{{ appointment.reason }}</td>
+                      <td class="p-4">{{ appointment.status }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </template>

@@ -17,6 +17,7 @@ const address = ref('');
 const region = ref('');
 const town = ref('');
 const kebele = ref('');
+const ssn = ref('');
 const houseNumber = ref('');
 const profilePicture = ref(null); // For profile picture upload
 
@@ -91,32 +92,31 @@ const handleSignup = async () => {
   try {
     const apiBase = useRuntimeConfig().public.API_BASE;
 
-    // Prepare the payload as a JSON object
-    const payload = {
-      username: username.value,
-      email: email.value,
-      password: password.value,
-      first_name: firstName.value,
-      middle_name: middleName.value,
-      last_name: lastName.value,
-      phone_number: phoneNumber.value,
-      gender: gender.value,
-      date_of_birth: dateOfBirth.value,
-      address: address.value,
-      region: region.value,
-      town: town.value,
-      kebele: kebele.value,
-      house_number: houseNumber.value,
-      profile_picture: profilePicture.value ? profilePicture.value.name : null, // Only send the filename or path for the picture
-    };
+    // Create FormData object
+    const formData = new FormData();
+    formData.append('username', username.value);
+    formData.append('email', email.value);
+    formData.append('password', password.value);
+    formData.append('first_name', firstName.value);
+    formData.append('middle_name', middleName.value);
+    formData.append('last_name', lastName.value);
+    formData.append('phone_number', phoneNumber.value);
+    formData.append('gender', gender.value);
+    formData.append('date_of_birth', dateOfBirth.value);
+    formData.append('address', address.value);
+    formData.append('region', region.value);
+    formData.append('town', town.value);
+    formData.append('kebele', kebele.value);
+    formData.append('ssn', ssn.value);
+    formData.append('house_number', houseNumber.value);
+    if (profilePicture.value) {
+      formData.append('profile_picture', profilePicture.value); // Append the file
+    }
 
-    // Send JSON instead of FormData
+    // Send FormData instead of JSON
     const response = await $fetch(`${apiBase}/user/signup/`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json', // Specify JSON content type
-      },
-      body: JSON.stringify(payload),
+      body: formData, // FormData is sent as multipart/form-data
     });
 
     successMessage.value = response.message;
@@ -274,6 +274,11 @@ const handleSignup = async () => {
               <div>
                 <label class="block mb-2 text-sm font-medium text-emerald-700">Kebele</label>
                 <input v-model="kebele" type="text"
+                  class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-medium text-emerald-700">SSN</label>
+                <input v-model="ssn" type="text"
                   class="w-full p-3 rounded-lg border border-emerald-200 focus:ring-2 focus:ring-emerald-600 outline-none transition-all hover:border-emerald-400" />
               </div>
               <div>

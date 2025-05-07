@@ -1,15 +1,61 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useAuth } from '~/composables/useAuth' 
+import { useNotifications } from '~/composables/useNotifications';
+const { unreadCount } = useNotifications();
+
+const { handleLogout } = useAuth()
+// Function to get a cookie value by name
+const getCookie = (name: string): string | null => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+};
 
 const patients = ref<any[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+const selectedPatient = ref<any | null>(null)
+const showModal = ref(false)
+
+const openPatientDetails = (patient: any) => {
+  selectedPatient.value = patient
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+  selectedPatient.value = null
+}
+
+const calculateAge = (dob: string): number | null => {
+  if (!dob) return null;
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+
 const fetchPatients = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await fetch(`${useRuntimeConfig().public.API_BASE}/patients`)
+    const token = getCookie('access_token') // Get token from cookies
+    if (!token) throw new Error('No access token found')
+
+    const response = await fetch(`${useRuntimeConfig().public.API_BASE}/patients/user/patient-records/
+`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
     if (!response.ok) throw new Error('Failed to fetch patients')
     const data = await response.json()
     patients.value = data
@@ -53,6 +99,12 @@ onMounted(() => {
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
             <a
               href="/staff/record_officer/inbox"
@@ -75,6 +127,15 @@ onMounted(() => {
               <span class="material-symbols-outlined mr-2">meeting_room</span>
               Assign Room
             </a>
+            <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
@@ -82,76 +143,118 @@ onMounted(() => {
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
-          <div class="space-y-6">
-            <!-- Header -->
-            <div class="flex justify-between items-center mb-6">
-              <h2 class="text-2xl font-semibold">Patient Records</h2>
-              <div class="relative">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                <input
-                  type="text"
-                  placeholder="Search patients..."
-                  class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-80 transition-all duration-200"
-                />
-              </div>
-            </div>
+          <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
+            <!-- Patient Details Modal -->
+            <div
+              v-if="showModal && selectedPatient"
+              class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            >
+              <div class="bg-white rounded-lg p-6 w-full max-w-2xl shadow-lg relative">
+                <h2 class="text-xl font-semibold mb-4">Patient Details</h2>
 
-            <!-- Loading and Error States -->
-            <div v-if="loading" class="text-center">Loading patients...</div>
-            <div v-if="error" class="text-red-500">{{ error }}</div>
-
-            <!-- Patient Cards -->
-            <div v-else class="grid gap-4">
-              <div
-                v-for="patient in patients"
-                :key="patient.id"
-                class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300"
-              >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-emerald-100 rounded-full overflow-hidden flex items-center justify-center">
-                      <img
-                        v-if="patient.profile_picture"
-                        :src="patient.profile_picture"
-                        alt="Profile picture"
-                        class="object-cover w-full h-full"
-                      />
-                      <span v-else class="material-symbols-outlined text-3xl text-emerald-600">person</span>
-                    </div>
-                    <div>
-                      <h3 class="text-lg font-semibold">{{ patient.username }}</h3>
-                      <p class="text-sm text-gray-500">Patient ID: PT-{{ patient.id }}</p>
-                    </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <!-- Filtered User Info -->
+                <div v-if="selectedPatient && selectedPatient.user">
+                  <div v-for="field in ['first_name', 'middle_name', 'last_name', 'email', 'phone_number', 'address', 'gender', 'date_of_birth']"
+                      :key="field">
+                    <p class="text-sm text-gray-500 capitalize">{{ field.replaceAll('_', ' ') }}</p>
+                    <p class="font-medium">
+                      {{ field === 'date_of_birth' ? calculateAge(selectedPatient.user[field]) + ' years' : selectedPatient.user[field] || 'N/A' }}
+                    </p>
                   </div>
-                  <button
-                    class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
+                </div>
+                  <!-- Patient Profile Info -->
+                  <div  v-if="selectedPatient">
+                    <div 
+                    v-for="field in ['region', 'town', 'kebele', 'house_number', 'room_number']"
+                    :key="'profile_' + field"
                   >
-                    <span class="material-symbols-outlined">visibility</span> View Details
-                  </button>
+                    <p class="text-sm text-gray-500 capitalize">{{ field.replaceAll('_', ' ') }}</p>
+                    <p class="font-medium">{{ selectedPatient[field] || 'N/A' }}</p>
+                  </div>
                 </div>
-                <div class="mt-4 grid grid-cols-4 gap-4">
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Phone Number</p>
-                    <p class="font-medium">{{ patient.phone_number }}</p>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-6">
+              <!-- Header -->
+              <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-semibold">Patient Records</h2>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                  <input
+                    type="text"
+                    placeholder="Search patients..."
+                    class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-80 transition-all duration-200"
+                  />
+                </div>
+              </div>
+
+              <!-- Loading and Error States -->
+              <div v-if="loading" class="text-center">Loading patients...</div>
+              <div v-if="error" class="text-red-500">{{ error }}</div>
+              <!-- Patient Cards -->
+              <div v-else class="grid gap-4">
+                <div
+                  v-for="patient in patients"
+                  :key="patient.user.id"
+                  class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300"
+                >
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                      <div class="w-16 h-16 bg-emerald-100 rounded-full overflow-hidden flex items-center justify-center">
+                        <img
+                          v-if="patient.user.profile_picture"
+                          :src="patient.user.profile_picture"
+                          alt="Profile picture"
+                          class="object-cover w-full h-full"
+                        />
+                        <span v-else class="material-symbols-outlined text-3xl text-emerald-600">person</span>
+                      </div>
+                      <div>
+                        <h3 class="text-lg font-semibold">{{ patient.user.first_name }} {{ patient.user.last_name }}</h3>
+                        <p class="text-sm text-gray-500">Patient ID: PT-{{ patient.user.id }}</p>
+                      </div>
+                    </div>
+                    <button
+                      class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors duration-200 flex items-center gap-2"
+                      @click="selectedPatient?.user?.id === patient.user.id ? closeModal() : openPatientDetails(patient)"
+                    >
+                      <span class="material-symbols-outlined">
+                        {{ selectedPatient?.user?.id === patient.user.id && showModal ? 'visibility_off' : 'visibility' }}
+                      </span>
+                      {{ selectedPatient?.user?.id === patient.user.id && showModal ? 'View Less' : 'View Details' }}
+                    </button>
                   </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Region</p>
-                    <p class="font-medium">{{ patient.region }}</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Town</p>
-                    <p class="font-medium">{{ patient.town }}</p>
-                  </div>
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <p class="text-sm text-gray-500">Status</p>
-                    <p class="font-medium text-emerald-600">Active</p>
+                  <div class="mt-4 grid grid-cols-4 gap-4">
+                    <div class="p-3 bg-emerald-50 rounded-lg">
+                      <p class="text-sm text-gray-500">Phone Number</p>
+                      <p class="font-medium">{{ patient.user.phone_number }}</p>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-lg">
+                      <p class="text-sm text-gray-500">Region</p>
+                      <p class="font-medium">{{ patient.region }}</p>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-lg">
+                      <p class="text-sm text-gray-500">Town</p>
+                      <p class="font-medium">{{ patient.town }}</p>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-lg">
+                      <p class="text-sm text-gray-500">Age</p>
+                      <p
+                        :class="{
+                          'font-medium text-emerald-600': patient.user.date_of_birth,
+                          'font-medium text-red-500': !patient.user.date_of_birth
+                        }"
+                      >
+                        {{ patient.user.date_of_birth ? calculateAge(patient.user.date_of_birth) + ' years' : 'Unknown' }}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </main>
+          </main>
       </div>
     </div>
   </div>

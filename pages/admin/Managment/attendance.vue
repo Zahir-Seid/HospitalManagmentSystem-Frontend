@@ -1,26 +1,72 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRuntimeConfig } from '#imports';
+import { useAuth } from '~/composables/useAuth' 
+const { handleLogout } = useAuth()
+
+const route = useRoute();
+
+const navItems = [
+  { path: '/admin/Managment/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { path: '/admin/Managment/attendance', label: 'Attendance', icon: 'calendar_month' },
+  { path: '/admin/Managment/employee', label: 'Employees', icon: 'group' },
+  { path: '/admin/Managment/feedback', label: 'Feedback', icon: 'forum' },
+  { path: '/admin/Managment/pricing', label: 'Pricing', icon: 'sell' },
+  { path: '/admin/Managment/chat', label: 'Messages', icon: 'inbox' },
+];
+
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+const isValidDate = (date) => {
+    const parsedDate = new Date(date);
+    return !isNaN(parsedDate.getTime());
+  };
+
+  const averageCheckInTime = computed(() => {
+  if (attendanceRecords.value.length === 0) return null;
+
+  const timestamps = attendanceRecords.value.map(record => {
+    const dateTimeStr = `${record.date}T${record.check_in}`;
+    const date = new Date(dateTimeStr);
+    return date.getTime();
+  }).filter(ts => !isNaN(ts)); // remove invalid dates
+
+  if (timestamps.length === 0) return null;
+
+  const averageTimestamp = Math.floor(
+    timestamps.reduce((a, b) => a + b, 0) / timestamps.length
+  );
+
+  return new Date(averageTimestamp);
+});
 
 const config = useRuntimeConfig();
-const apiBase = config.public.API_BASE;
+const apiBase = config.public.API_BASE;  // API Base URL
 
 // Reactive state
 const attendanceRecords = ref([]);
 const errorMessage = ref('');
 const isLoading = ref(true);
 
-// Auth headers
-const authHeaders = {
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-  },
-};
+// Get tokens from cookies (client-side only)
+const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;  // Retrieve access token from cookies if running in the browser
+const authHeaders = accessToken
+  ? {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,  // Get the token from cookies
+      },
+    }
+  : {};
 
 // Fetch attendance records
 const fetchAttendanceRecords = async () => {
   try {
-    const response = await $fetch(`${apiBase}/api/Managment/attendance`, authHeaders);
+    const response = await $fetch(`${apiBase}/Managment/attendance`, authHeaders);
     attendanceRecords.value = response; // Store data in reactive state
   } catch (error) {
     errorMessage.value = error.data?.error || 'Failed to load attendance records.';
@@ -32,6 +78,7 @@ const fetchAttendanceRecords = async () => {
 // Fetch attendance on page load
 onMounted(fetchAttendanceRecords);
 </script>
+
 
 <template>
  <div id="webcrumbs">
@@ -45,61 +92,29 @@ onMounted(fetchAttendanceRecords);
           </div>
           <nav class="py-4">
             <ul>
-              <li class="mb-1">
+              <li class="mb-1" v-for="item in navItems" :key="item.path">
                 <a
-                  href="/admin/Managment/dashboard"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+                  :href="item.path"
+                  :class="[
+                    'flex items-center px-4 py-3 transition-all duration-200',
+                    route.path === item.path
+                      ? 'text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600'
+                      : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-900'
+                  ]"
                 >
-                  <span class="material-symbols-outlined mr-3">dashboard</span>
-                  Dashboard
+                  <span class="material-symbols-outlined mr-3">{{ item.icon }}</span>
+                  {{ item.label }}
                 </a>
               </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/attendance"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+
+              <li class="mt-6">
+                <button 
+                  @click="handleLogout"
+                  class="flex items-center w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200"
                 >
-                  <span class="material-symbols-outlined mr-3"
-                    >calendar_month</span
-                  >
-                  Attendance
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/employee"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">group</span>
-                  Employees
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/feedback"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">forum</span>
-                  Feedback
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/pricing"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">sell</span>
-                  Pricing
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/chat"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">inbox</span>
-                  Messages
-                </a>
+                  <span class="material-symbols-outlined mr-3">logout</span>
+                  Logout
+                </button>
               </li>
             </ul>
           </nav>
@@ -128,12 +143,13 @@ onMounted(fetchAttendanceRecords);
             <span class="material-symbols-outlined text-emerald-600">schedule</span>
           </div>
           <p class="text-3xl font-bold text-emerald-900">
-            {{
-              attendanceRecords.length > 0
-                ? new Date(attendanceRecords[0].check_in).toLocaleTimeString()
-                : 'N/A'
-            }}
-          </p>
+  {{
+    averageCheckInTime
+      ? averageCheckInTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'N/A'
+  }}
+</p>
+
           <div class="mt-4 h-2 bg-emerald-100 rounded-full overflow-hidden">
             <div class="h-full bg-emerald-600 rounded-full" style="width: 92%"></div>
           </div>
@@ -171,8 +187,8 @@ onMounted(fetchAttendanceRecords);
                   <td class="p-4">{{ record.employee_id }}</td>
                   <td class="p-4">{{ record.employee_name }}</td>
                   <td class="p-4">{{ record.date }}</td>
-                  <td class="p-4">{{ new Date(record.check_in).toLocaleTimeString() }}</td>
-                  <td class="p-4">{{ new Date(record.check_out).toLocaleTimeString() }}</td>
+                  <td class="p-4">{{ record.check_in }}</td>
+                  <td class="p-4">{{ record.check_out }}</td>
                   <td class="p-4">{{ record.total_hours }}</td>
                 </tr>
               </tbody>

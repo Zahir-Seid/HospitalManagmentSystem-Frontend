@@ -1,40 +1,57 @@
 <script setup>
+import { ref } from 'vue';
+import { useNotifications } from '~/composables/useNotifications';
+const { unreadCount } = useNotifications();
+
+const { handleLogout } = useAuth()
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
-const checkInTime = ref('')
-const checkOutTime = ref('')
-const todaySummary = ref(null)
+const checkInTime = ref('');
+const checkOutTime = ref('');
+const todaySummary = ref(null);
 
 const markAttendance = async () => {
   try {
     if (!checkInTime.value && !checkOutTime.value) {
-      alert('Please enter at least one time (check-in or check-out)')
-      return
+      alert('Please enter at least one time (check-in or check-out)');
+      return;
     }
 
-    const action = checkInTime.value && !checkOutTime.value ? 'check_in' : 'check_out'
-    const time = checkInTime.value || checkOutTime.value
+    const action = checkInTime.value && !checkOutTime.value ? 'check_in' : 'check_out';
+    const time = checkInTime.value || checkOutTime.value;
+
+    // Retrieve the token from cookies
+    const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null; 
 
     const response = await fetch(`${apiBase}/management/attendance`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        Authorization: accessToken ? `Bearer ${accessToken}` : '', // Use token from cookies if available
       },
       body: JSON.stringify({ action, time: `${time}:00` }),
-    })
+    });
 
-    const data = await response.json()
-    if (!response.ok) throw new Error(data.error || 'Failed to mark attendance')
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to mark attendance');
 
-    todaySummary.value = data
-    alert('Attendance marked successfully!')
+    todaySummary.value = data;
+    alert('Attendance marked successfully!');
   } catch (error) {
-    console.error(error)
-    alert(error.message)
+    console.error(error);
+    alert(error.message);
   }
-}
+};
 </script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
@@ -84,7 +101,22 @@ const markAttendance = async () => {
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
+            <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.

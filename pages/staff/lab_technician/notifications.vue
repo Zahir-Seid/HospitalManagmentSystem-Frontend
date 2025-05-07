@@ -1,5 +1,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useAuth } from '~/composables/useAuth' // Adjust the path if needed
+import { useNotifications } from '~/composables/useNotifications';
+
+const { unreadCount } = useNotifications();
+const { handleLogout } = useAuth()
+
+// Function to get a cookie value by name
+const getCookie = (name: string) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
@@ -16,8 +29,19 @@ const selectedNotifications = ref<number[]>([]);
 
 // Fetch notifications
 const fetchNotifications = async () => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Add token from cookies
+        },
+      }
+    : {};
+
   try {
-    const response = await fetch(`${apiBase}/notifications/list`);
+    const response = await fetch(`${apiBase}/notifications/list`, authHeaders);
     const data = await response.json();
     notifications.value = data;
   } catch (error) {
@@ -45,9 +69,21 @@ const markSelectedRead = async () => {
 
 // Helper method to mark a single notification as read
 const markAsRead = async (notificationId: number) => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Add token from cookies
+        },
+      }
+    : {};
+
   try {
     await fetch(`${apiBase}/notifications/mark-read/${notificationId}`, {
       method: 'PUT',
+      headers: authHeaders.headers, // Add headers for auth
     });
     notifications.value = notifications.value.map((notification) =>
       notification.id === notificationId ? { ...notification, read: true } : notification
@@ -72,9 +108,21 @@ const deleteSelected = async () => {
 
 // Helper method to delete a notification
 const deleteNotification = async (notificationId: number) => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Add token from cookies
+        },
+      }
+    : {};
+
   try {
     await fetch(`${apiBase}/notifications/delete/${notificationId}`, {
       method: 'DELETE',
+      headers: authHeaders.headers, // Add headers for auth
     });
   } catch (error) {
     console.error('Error deleting notification:', error);
@@ -91,55 +139,57 @@ onMounted(() => {
     <div class="h-[1080px]">
       <div class="flex h-full">
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
-          <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Record Officer Dashboard</div>
-            <a
-              href="/staff/record_officer/patient_registrar"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">person_add</span>
-              Pending Registrations
-            </a>
-            <a
-              href="/staff/record_officer/patient_record"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">folder_supervised</span>
-              Patient Records
-            </a>
-            <a
-              href="/staff/record_officer/notifications"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">notifications</span>
-              Notifications
-            </a>
-            <a
-              href="/staff/record_officer/inbox"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">inbox</span>
-              Inbox
-            </a>
-            <a
-              href="/staff/record_officer/attendance"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">schedule</span>
-              Attendance
-            </a>
-            <a
-              href="/staff/record_officer/assignroom"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">meeting_room</span>
-              Assign Room
-            </a>
-          </nav>
-          <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
-            © 2025 Assosa General Hospital. All rights reserved.
-          </div>
-        </aside>
+        <nav class="space-y-4">
+          <div class="text-white text-xl font-bold mb-8">Lab Dashboard</div>
+          <a
+            href="/staff/lab_technician/dashboard"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
+          >
+            <span class="material-symbols-outlined mr-2">science</span> Lab
+            Tests
+          </a>
+          <a
+            href="/staff/lab_technician/notifications"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
+          >
+            <span class="material-symbols-outlined mr-2">notifications</span>
+            Notifications
+            <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
+          </a>
+          <a
+            href="/staff/lab_technician/inbox"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
+          >
+            <span class="material-symbols-outlined mr-2">inbox</span> Inbox
+          </a>
+          <a
+            href="/staff/lab_technician/attendance"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
+          >
+            <span class="material-symbols-outlined mr-2">schedule</span>
+            Attendance
+          </a>
+          <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
+        </nav>
+        <div
+          class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"
+        >
+          © 2025 Assosa General Hospital. All rights reserved.
+        </div>
+      </aside>
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
           <div class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-xl mb-8 flex flex-col md:flex-row justify-between items-center">
             <h2 class="text-2xl font-bold text-emerald-900 mb-4 md:mb-0">Notifications</h2>

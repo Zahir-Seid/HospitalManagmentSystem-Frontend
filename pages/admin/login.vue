@@ -19,27 +19,27 @@ const login = async () => {
         password: password.value,
       },
     });
+
     // Store tokens in cookies without HttpOnly (since it's not needed for showcase)
     document.cookie = `access_token=${response.access}; path=/; Secure; SameSite=Strict`;
     document.cookie = `refresh_token=${response.refresh}; path=/; Secure; SameSite=Strict`;
-    const user = response.user;
 
-    // Check if the user is a patient
-    console.log(user.role)
-    if (user && user.role === 'patient') {
-      // If the user is a patient, redirect to the patient profile page
-      router.push('/patient/profile');
+    // Check if the user has the 'manager' role
+    const user = response.user;
+    if (user && user.role === 'manager') {
+      // If the user is a manager, redirect to the manager dashboard
+      router.push('/admin/Managment/dashboard');
     } else {
-      // If the user is not a patient, show an error message
-      errorMessage.value = 'Access denied. Only patients can log in to this section.';
+      // If the user is not a manager, show an error message
+      errorMessage.value = 'Access denied. Only admins can log in to this section.';
     }
 
   } catch (error) {
+    // Handle login failure
     errorMessage.value = error.data?.error || 'Login failed.';
   }
 };
 </script>
-
 
 <template>
     <div id="webcrumbs">
@@ -57,7 +57,6 @@ const login = async () => {
                         </div> 
                         <div class="flex justify-center space-x-4 mb-8"> 
                             <button class="px-6 py-2 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-all hover:scale-105"> Sign In </button> 
-                            <button class="px-6 py-2 rounded-full border-2 border-emerald-600 hover:bg-emerald-50 transition-all hover:scale-105"> <a href=/signup>Sign Up</a> </button> 
                         </div> 
                         <form class="space-y-4" @submit.prevent="login">
                           <div>
@@ -79,6 +78,7 @@ const login = async () => {
             </div>
         </div>
   </template>
+
   
   <style scoped>
     @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);

@@ -1,6 +1,22 @@
 <script setup>
 import { ref } from 'vue';
 import { useFetch } from '#app';
+import { useAuth } from '~/composables/useAuth' 
+import { useNotifications } from '~/composables/useNotifications';
+import { usePatients } from '~/composables/usePatients';  // Import usePatients composable
+
+const { patientData, loading, error } = usePatients();
+
+const { unreadCount } = useNotifications();
+
+const { handleLogout } = useAuth()
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
 const patientId = ref('');
 const fullName = ref('');
@@ -18,11 +34,11 @@ const assignRoom = async () => {
   }
 
   try {
-    const { data, error } = await useFetch(`${apiBase}/patients/assign-room`, { // Fixed template string
+    const { data, error } = await useFetch(`${apiBase}/patients/assign-room`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`, // Assuming token is stored here
+        Authorization: `Bearer ${getCookie('access_token')}`, // Token fetched from cookies
       },
       body: {
         patient_id: Number(patientId.value),
@@ -70,6 +86,12 @@ const assignRoom = async () => {
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
             <a
               href="/staff/record_officer/inbox"
@@ -92,6 +114,15 @@ const assignRoom = async () => {
               <span class="material-symbols-outlined mr-2">meeting_room</span>
               Assign Room
             </a>
+            <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
@@ -112,12 +143,16 @@ const assignRoom = async () => {
                 <form class="space-y-4">
                   <div>
                     <label class="block text-sm font-medium mb-2">Patient ID</label>
-                    <input
-                      v-model="patientId"
-                      type="text"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      placeholder="Enter patient ID"
-                    />
+                    <select
+                    v-model="patientId"
+                    class="border border-emerald-200 rounded-lg w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                  >
+                    <option value="" disabled selected>Select a Patient</option>
+                    <!-- Loop through patientData to display patient names -->
+                    <option v-for="patient in patientData" :key="patient.id" :value="patient.id">
+                      {{ patient.patient }} ({{ patient.username }})
+                    </option>
+                  </select>
                   </div>
                   <div>
                     <label class="block text-sm font-medium mb-2">Full Name</label>

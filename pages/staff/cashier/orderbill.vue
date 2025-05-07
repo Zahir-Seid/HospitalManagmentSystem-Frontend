@@ -1,27 +1,51 @@
 <script setup>
+import { ref, onMounted } from 'vue';
+import { usePatients } from '~/composables/usePatients';
+import { useNotifications } from '~/composables/useNotifications';
+const { unreadCount } = useNotifications();
+
+const { handleLogout } = useAuth()
+// For fetching patients
+const { patientData, loading, error } = usePatients();
+
+const patientName = ref('');
+const patientId = ref(null);  // Patient ID will be number, initially null
+const services = ref([]);
+const serviceName = ref('');
+const servicePrice = ref('');
+const totalAmount = ref(0);
+const billingResponse = ref(null);
+const showForm = ref(false);  // Controls visibility of the form
+
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
 
-const patientName = ref('');
-const patientId = ref('');
-const services = ref([]);
-const totalAmount = ref(0);
-const billingResponse = ref(null);
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
+// Create invoice
 async function fetchBillingData() {
   try {
-    const response = await fetch(`${apiBase}/api/billings/create`, {
+    const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+    const response = await fetch(`${apiBase}/billings/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`
+        Authorization: accessToken ? `Bearer ${accessToken}` : '',
       },
       body: JSON.stringify({
         patient_id: patientId.value,
         amount: totalAmount.value,
-        description: 'Consultation and Laboratory Tests'
+        description: 'Consultation and Laboratory Tests',
       })
     });
+
     if (!response.ok) throw new Error('Failed to create invoice');
     billingResponse.value = await response.json();
   } catch (error) {
@@ -29,11 +53,23 @@ async function fetchBillingData() {
   }
 }
 
-function addService(service, price) {
-  services.value.push({ name: service, price });
+// Add a service
+function addService() {
+  if (!serviceName.value || !servicePrice.value || isNaN(servicePrice.value)) {
+    alert('Please enter a valid service name and price.');
+    return;
+  }
+
+  const price = parseFloat(servicePrice.value);
+  services.value.push({ name: serviceName.value, price });
   totalAmount.value += price;
+
+  // Clear the input fields
+  serviceName.value = '';
+  servicePrice.value = '';
 }
 
+// Handle the payment processing
 function handleProcessPayment() {
   if (!patientId.value || !totalAmount.value) {
     alert('Please fill out all required fields.');
@@ -42,12 +78,25 @@ function handleProcessPayment() {
   fetchBillingData();
 }
 
-// Simulate adding services dynamically for demonstration
+// Handle new order
+function handleNewOrder() {
+  showForm.value = true;  // Show the form when New Order is clicked
+  patientId.value = null;
+  patientName.value = '';
+  totalAmount.value = 0;
+  services.value = [];
+  // Reset other necessary fields, if any
+}
+
+// Handle cancelling the form
+function handleCancelOrder() {
+  showForm.value = false;  // Hide the form when Cancel is clicked
+}
+
 onMounted(() => {
-  addService('Consultation', 150.00);
-  addService('Laboratory Test', 75.00);
 });
 </script>
+
 
 <template>
   <div id="webcrumbs">
@@ -98,7 +147,22 @@ onMounted(() => {
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
+            <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
             © 2025 Assosa General Hospital. All rights reserved.
@@ -113,74 +177,71 @@ onMounted(() => {
               <div class="flex items-center justify-between mb-8">
                 <h2 class="text-2xl font-semibold">Order Bill</h2>
                 <div class="flex gap-4">
-                  <button class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-all duration-200">
+                  <button @click="handleNewOrder" class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-all duration-200">
                     New Order
-                  </button>
-                  <button class="border border-emerald-500 text-emerald-500 px-4 py-2 rounded-lg hover:bg-emerald-50 transition-all duration-200">
-                    Print Bill
                   </button>
                 </div>
               </div>
 
-              <!-- Order Form -->
-              <div class="space-y-6">
+              <!-- Order Form (Visible when showForm is true) -->
+              <div v-if="showForm" class="space-y-6">
                 <div class="grid grid-cols-2 gap-6">
+                  <!-- Patient Selection -->
                   <div>
-                    <label class="block text-sm font-medium mb-2">Patient Name</label>
-                    <input
-                      v-model="patientName"
-                      type="text"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      placeholder="Enter patient name"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-2">Patient ID</label>
-                    <input
-                      v-model="patientId"
-                      type="text"
-                      class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
-                      placeholder="Enter patient ID"
-                    />
+                    <label class="block text-sm font-medium mb-2">Patient</label>
+                    <select v-model="patientId" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200">
+                      <option value="" disabled>Select Patient</option>
+                      <option v-for="patient in patientData" :key="patient.id" :value="patient.id">
+                        {{ patient.patient }} - {{ patient.username }}
+                      </option>
+                    </select>
                   </div>
                 </div>
 
-                <!-- Services Section -->
-                <div class="bg-emerald-50 rounded-lg p-6">
-                  <h3 class="text-lg font-semibold mb-4">Services</h3>
-                  <div class="space-y-4">
-                    <div class="flex items-center justify-between p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200">
-                      <div>
-                        <h4 class="font-medium">Consultation</h4>
-                        <p class="text-sm text-gray-500">General checkup</p>
-                      </div>
-                      <div class="text-lg font-semibold">$150.00</div>
+                <!-- Add Service Section -->
+                <div class="space-y-4">
+                  <div class="flex gap-4">
+                    <div class="flex-1">
+                      <label class="block text-sm font-medium mb-2">Service Name</label>
+                      <input v-model="serviceName" type="text" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200" placeholder="Enter service name" />
                     </div>
-
-                    <div class="flex items-center justify-between p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200">
-                      <div>
-                        <h4 class="font-medium">Laboratory Test</h4>
-                        <p class="text-sm text-gray-500">Blood work</p>
-                      </div>
-                      <div class="text-lg font-semibold">$75.00</div>
+                    <div class="flex-1">
+                      <label class="block text-sm font-medium mb-2">Service Price</label>
+                      <input v-model="servicePrice" type="number" min="0" step="0.01" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200" placeholder="Enter service price" />
                     </div>
                   </div>
+                  <button @click="addService" class="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600 transition-all duration-200">
+                    Add Service
+                  </button>
+                </div>
 
-                  <!-- Total Amount -->
-                  <div class="mt-6 pt-6 border-t border-emerald-200">
-                    <div class="flex justify-between items-center text-lg font-semibold">
-                      <span>Total Amount</span>
-                      <span>${{ totalAmount }}</span>
+                <!-- Display Added Services -->
+                <div class="bg-emerald-50 rounded-lg p-6 mt-6">
+                  <h3 class="text-lg font-semibold mb-4">Added Services</h3>
+                  <div class="space-y-4">
+                    <div v-for="(service, index) in services" :key="index" class="flex items-center justify-between p-4 bg-white rounded-lg hover:shadow-md transition-all duration-200">
+                      <div>
+                        <h4 class="font-medium">{{ service.name }}</h4>
+                      </div>
+                      <div class="text-lg font-semibold">${{ service.price.toFixed(2) }}</div>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Total Amount -->
+                <div class="mt-6 pt-6 border-t border-emerald-200">
+                  <div class="flex justify-between items-center text-lg font-semibold">
+                    <span>Total Amount</span>
+                    <span>${{ totalAmount.toFixed(2) }}</span>
                   </div>
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="flex justify-end gap-4">
-                  <button class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200">
+                <div class="flex justify-end gap-4 mt-6">
+                  <button @click="handleCancelOrder" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200">
                     Cancel
                   </button>
-                  <button @click="createInvoice" class="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all duration-200">
+                  <button @click="handleProcessPayment" class="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all duration-200">
                     Process Payment
                   </button>
                 </div>

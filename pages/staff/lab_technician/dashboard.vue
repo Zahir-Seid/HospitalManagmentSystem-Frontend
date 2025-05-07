@@ -1,39 +1,137 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRuntimeConfig } from '#imports';
+import { useNotifications } from '~/composables/useNotifications';
+import { useAuth } from '~/composables/useAuth' 
+const { unreadCount } = useNotifications();
+
+const { handleLogout } = useAuth()
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
+
+const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+const authHeaders = accessToken
+  ? { headers: { Authorization: `Bearer ${accessToken}` } }
+  : {};
+
+const labTests = ref([]);
+const loading = ref(false);
+const searchQuery = ref('');
+const updateFormVisible = ref(false);
+const selectedTest = ref(null);
+
+const fetchLabTests = async () => {
+  loading.value = true;
+  try {
+    labTests.value = await $fetch(`${apiBase}/lab/list`, { ...authHeaders });
+  } catch (err) {
+    console.error('Failed to load lab tests:', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const updateLabTest = async () => {
+  try {
+    await $fetch(`${apiBase}/lab/update/${selectedTest.value.id}`, {
+      method: 'PUT',
+      body: {
+        status: selectedTest.value.status,
+        result: selectedTest.value.result,
+      },
+      ...authHeaders,
+    });
+    await fetchLabTests();
+    closeForm();
+  } catch (err) {
+    console.error('Update failed:', err);
+  }
+};
+
+const openForm = (test) => {
+  selectedTest.value = { ...test };
+  updateFormVisible.value = true;
+};
+
+const closeForm = () => {
+  selectedTest.value = null;
+  updateFormVisible.value = false;
+};
+
+const filteredLabTests = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return labTests.value;
+
+  return labTests.value.filter((test) => {
+    return test.test_name.toLowerCase().includes(query)
+      || test.patient.full_name.toLowerCase().includes(query)
+      || test.status.toLowerCase().includes(query)
+      || (test.result && test.result.toLowerCase().includes(query));
+  });
+});
+
+
+onMounted(() => {
+  fetchLabTests();
+});
+</script>
+
+
+
 <template
   ><div id="webcrumbs">
-    <div class="w-[1200px] flex h-[850px] bg-gray-50">
+    <div class="w-[1800px] flex h-[850px] bg-gray-50">
       <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
         <nav class="space-y-4">
           <div class="text-white text-xl font-bold mb-8">Lab Dashboard</div>
           <a
-            href="/lab/tests"
+            href="/staff/lab_technician/dashboard"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
           >
             <span class="material-symbols-outlined mr-2">science</span> Lab
             Tests
           </a>
           <a
-            href="/lab/notifications"
+            href="/staff/lab_technician/notifications"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
           >
             <span class="material-symbols-outlined mr-2">notifications</span>
             Notifications
             <span
-              class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full animate-pulse"
-              >2</span
-            >
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
           </a>
           <a
-            href="/lab/inbox"
+            href="/staff/lab_technician/inbox"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
           >
             <span class="material-symbols-outlined mr-2">inbox</span> Inbox
           </a>
           <a
-            href="/lab/attendance"
+            href="/staff/lab_technician/attendance"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
           >
             <span class="material-symbols-outlined mr-2">schedule</span>
             Attendance
+          </a>
+          <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
           </a>
         </nav>
         <div
@@ -44,184 +142,56 @@
       </aside>
       <main class="flex-1 p-6 overflow-auto">
         <header class="mb-6">
-          <h1 class="text-2xl font-bold text-emerald-900">
-            Laboratory Dashboard
-          </h1>
-          <p class="text-gray-600">
-            Manage and process laboratory tests efficiently
-          </p>
+          <h1 class="text-2xl font-bold text-emerald-900">Laboratory Dashboard</h1>
         </header>
-        <div class="grid grid-cols-3 gap-4 mb-6">
-          <div
-            class="bg-white rounded-xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-          >
-            <div class="flex items-center">
-              <span class="material-symbols-outlined text-amber-500 text-3xl"
-                >pending</span
-              >
-              <div class="ml-4">
-                <h3 class="text-lg font-semibold">Pending Tests</h3>
-                <p class="text-2xl font-bold text-amber-600">14</p>
-              </div>
-            </div>
-          </div>
-          <div
-            class="bg-white rounded-xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-          >
-            <div class="flex items-center">
-              <span class="material-symbols-outlined text-emerald-500 text-3xl"
-                >check_circle</span
-              >
-              <div class="ml-4">
-                <h3 class="text-lg font-semibold">Completed Today</h3>
-                <p class="text-2xl font-bold text-emerald-600">27</p>
-              </div>
-            </div>
-          </div>
-          <div
-            class="bg-white rounded-xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-          >
-            <div class="flex items-center">
-              <span class="material-symbols-outlined text-red-500 text-3xl"
-                >priority_high</span
-              >
-              <div class="ml-4">
-                <h3 class="text-lg font-semibold">Critical Results</h3>
-                <p class="text-2xl font-bold text-red-600">3</p>
-              </div>
-            </div>
-          </div>
-        </div>
+
+        <!-- Table -->
         <div class="bg-white rounded-xl shadow-lg mb-6">
-          <div
-            class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-t-xl flex justify-between items-center"
-          >
-            <h3 class="text-xl font-bold text-emerald-900">
-              Pending Lab Tests
-            </h3>
-            <div class="relative">
-              <input
-                type="text"
-                placeholder="Search tests..."
-                class="pl-10 pr-4 py-2 rounded-lg border border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              />
-              <span
-                class="material-symbols-outlined absolute left-3 top-2 text-emerald-500"
-                >search</span
-              >
-            </div>
+          <div class="p-6 bg-gradient-to-r from-emerald-100 to-white flex justify-between items-center">
+            <h3 class="text-xl font-bold text-emerald-900">Pending Lab Tests</h3>
+            <input
+              v-model="searchQuery"
+              placeholder="Search tests..."
+              class="pl-10 pr-4 py-2 rounded-lg border border-emerald-200 focus:ring-emerald-500"
+            />
           </div>
+
           <div class="overflow-x-auto p-6">
             <table class="w-full">
               <thead class="bg-emerald-50">
                 <tr>
-                  <th class="p-4 text-left text-emerald-700 rounded-tl-lg">
-                    Test Name
-                  </th>
+                  <th class="p-4 text-left text-emerald-700">Test Name</th>
+                  <th class="p-4 text-left text-emerald-700">From Dr.</th>
                   <th class="p-4 text-left text-emerald-700">Patient</th>
                   <th class="p-4 text-left text-emerald-700">Status</th>
                   <th class="p-4 text-left text-emerald-700">Result</th>
-                  <th class="p-4 text-left text-emerald-700 rounded-tr-lg">
-                    Actions
-                  </th>
+                  <th class="p-4 text-left text-emerald-700">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors duration-150"
+                  v-for="test in filteredLabTests"
+                  :key="test.id"
+                  class="border-b hover:bg-emerald-50"
                 >
-                  <td class="p-4">Blood Glucose Test</td>
-                  <td class="p-4">Abebe Kebede</td>
+                  <td class="p-4">{{ test.test_name }}</td>
+                  <td class="p-4">{{ test.doctor }}</td>
+                  <td class="p-4">{{ test.patient }}</td>
                   <td class="p-4">
                     <span
-                      class="px-3 py-1 rounded-full bg-amber-100 text-amber-800"
-                      >Pending</span
+                      :class="{
+                        'bg-amber-100 text-amber-800': test.status === 'Pending',
+                        'bg-emerald-100 text-emerald-800': test.status === 'Completed',
+                        'bg-red-100 text-red-800': test.status === 'Critical',
+                      }"
+                      class="px-3 py-1 rounded-full"
                     >
+                      {{ test.status }}
+                    </span>
                   </td>
-                  <td class="p-4">Pending</td>
+                  <td class="p-4">{{ test.result || 'Pending' }}</td>
                   <td class="p-4">
-                    <button
-                      class="text-emerald-600 hover:text-emerald-700 transition-colors duration-150"
-                    >
-                      <span class="material-symbols-outlined">edit</span>
-                    </button>
-                  </td>
-                </tr>
-                <tr
-                  class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors duration-150"
-                >
-                  <td class="p-4">Complete Blood Count</td>
-                  <td class="p-4">Sara Mohammed</td>
-                  <td class="p-4">
-                    <span
-                      class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800"
-                      >Completed</span
-                    >
-                  </td>
-                  <td class="p-4">Normal values</td>
-                  <td class="p-4">
-                    <button
-                      class="text-emerald-600 hover:text-emerald-700 transition-colors duration-150"
-                    >
-                      <span class="material-symbols-outlined">visibility</span>
-                    </button>
-                  </td>
-                </tr>
-                <tr
-                  class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors duration-150"
-                >
-                  <td class="p-4">Liver Function Test</td>
-                  <td class="p-4">Dawit Haile</td>
-                  <td class="p-4">
-                    <span class="px-3 py-1 rounded-full bg-red-100 text-red-800"
-                      >Critical</span
-                    >
-                  </td>
-                  <td class="p-4">Elevated enzymes</td>
-                  <td class="p-4">
-                    <button
-                      class="text-emerald-600 hover:text-emerald-700 transition-colors duration-150"
-                    >
-                      <span class="material-symbols-outlined"
-                        >priority_high</span
-                      >
-                    </button>
-                  </td>
-                </tr>
-                <tr
-                  class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors duration-150"
-                >
-                  <td class="p-4">Urinalysis</td>
-                  <td class="p-4">Meron Tadesse</td>
-                  <td class="p-4">
-                    <span
-                      class="px-3 py-1 rounded-full bg-amber-100 text-amber-800"
-                      >Pending</span
-                    >
-                  </td>
-                  <td class="p-4">Pending</td>
-                  <td class="p-4">
-                    <button
-                      class="text-emerald-600 hover:text-emerald-700 transition-colors duration-150"
-                    >
-                      <span class="material-symbols-outlined">edit</span>
-                    </button>
-                  </td>
-                </tr>
-                <tr class="hover:bg-emerald-50 transition-colors duration-150">
-                  <td class="p-4">Lipid Panel</td>
-                  <td class="p-4">Solomon Bekele</td>
-                  <td class="p-4">
-                    <span
-                      class="px-3 py-1 rounded-full bg-amber-100 text-amber-800"
-                      >Pending</span
-                    >
-                  </td>
-                  <td class="p-4">Pending</td>
-                  <td class="p-4">
-                    <button
-                      class="text-emerald-600 hover:text-emerald-700 transition-colors duration-150"
-                    >
+                    <button @click="openForm(test)" class="text-emerald-600 hover:text-emerald-700">
                       <span class="material-symbols-outlined">edit</span>
                     </button>
                   </td>
@@ -229,128 +199,74 @@
               </tbody>
             </table>
           </div>
-          <div
-            class="p-4 flex justify-between items-center border-t border-emerald-100"
-          >
-            <p class="text-sm text-gray-600">Showing 5 of 14 pending tests</p>
-            <div class="flex space-x-2">
-              <button
-                class="px-3 py-1 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors duration-150"
-              >
-                Previous
-              </button>
-              <button
-                class="px-3 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors duration-150"
-              >
-                Next
-              </button>
-            </div>
-          </div>
         </div>
-        <div class="relative">
-          <div
-            class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md absolute top-20 left-1/2 transform -translate-x-1/2 z-10 hidden"
+
+        <!-- Edit Modal -->
+<div
+  v-if="updateFormVisible"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30"
+>
+  <div class="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-auto">
+    <h3 class="text-lg font-bold text-emerald-900 mb-4">Update Test Results</h3>
+    <form @submit.prevent="updateLabTest">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-emerald-700 mb-2">Status</label>
+          <select
+            v-model="selectedTest.status"
+            class="border border-emerald-200 rounded-lg w-full p-2"
           >
-            <h3 class="text-lg font-bold text-emerald-900 mb-4">
-              Update Test Results
-            </h3>
-            <form>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-emerald-700 mb-2">Status</label>
-                  <select
-                    class="border border-emerald-200 rounded-lg w-full p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  >
-                    <option>Pending</option>
-                    <option>Completed</option>
-                    <option>Critical</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-emerald-700 mb-2">Result</label>
-                  <textarea
-                    class="border border-emerald-200 rounded-lg w-full p-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    rows="4"
-                  ></textarea>
-                </div>
-              </div>
-              <div class="flex gap-4 mt-6">
-                <button
-                  type="button"
-                  class="bg-gray-100 text-gray-700 px-6 py-2 rounded-full hover:bg-gray-200 transition-colors duration-150"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700 transition-colors duration-150"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+            <option value="Critical">Critical</option>
+          </select>
         </div>
-        <div class="bg-white rounded-xl shadow-lg">
-          <div
-            class="bg-gradient-to-r from-emerald-100 to-white p-6 rounded-t-xl"
-          >
-            <h3 class="text-xl font-bold text-emerald-900">Recent Activity</h3>
-          </div>
-          <div class="p-6">
-            <div class="space-y-4">
-              <div
-                class="flex items-start p-3 border-l-4 border-emerald-500 bg-emerald-50 rounded-r-lg"
-              >
-                <span class="material-symbols-outlined text-emerald-600 mr-3"
-                  >edit_document</span
-                >
-                <div>
-                  <p class="font-medium">
-                    CBC results updated for patient Sara Mohammed
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    10 minutes ago by Dr. Abebe
-                  </p>
-                </div>
-              </div>
-              <div
-                class="flex items-start p-3 border-l-4 border-red-500 bg-red-50 rounded-r-lg"
-              >
-                <span class="material-symbols-outlined text-red-600 mr-3"
-                  >priority_high</span
-                >
-                <div>
-                  <p class="font-medium">
-                    Critical results marked for Liver Function Test
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    45 minutes ago by Dr. Yonas
-                  </p>
-                </div>
-              </div>
-              <div
-                class="flex items-start p-3 border-l-4 border-amber-500 bg-amber-50 rounded-r-lg"
-              >
-                <span class="material-symbols-outlined text-amber-600 mr-3"
-                  >schedule</span
-                >
-                <div>
-                  <p class="font-medium">
-                    3 new lab tests scheduled for processing
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    2 hours ago by Nurse Hiwot
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div>
+          <label class="block text-emerald-700 mb-2">Result</label>
+          <textarea
+            v-model="selectedTest.result"
+            rows="4"
+            class="border border-emerald-200 rounded-lg w-full p-2"
+          ></textarea>
         </div>
+      </div>
+      <div class="flex gap-4 mt-6">
+        <button
+          type="button"
+          @click="closeForm"
+          class="bg-gray-100 text-gray-700 px-6 py-2 rounded-full hover:bg-gray-200"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700"
+        >
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<!-- Pagination (optional) -->
+<div class="flex justify-between items-center mt-6">
+                <div class="text-sm text-gray-500">Showing 1 of 10 Lab tests</div>
+                <div class="flex space-x-2">
+                  <button class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors">
+                    <span class="material-symbols-outlined text-sm">chevron_left</span>
+                  </button>
+                  <button class="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors">1</button>
+                  <button class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors">2</button>
+                  <button class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors">3</button>
+                  <button class="px-3 py-1 border border-emerald-200 rounded hover:bg-emerald-50 transition-colors">
+                    <span class="material-symbols-outlined text-sm">chevron_right</span>
+                  </button>
+                </div>
+              </div>
       </main>
     </div>
-  </div></template
->
+  </div>
+</template>
 
 <style scoped>
   @import url(https://fonts.googleapis.com/css2?family=Lato&display=swap);

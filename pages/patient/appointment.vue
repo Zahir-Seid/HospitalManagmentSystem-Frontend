@@ -1,84 +1,117 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRuntimeConfig } from '#imports'
+import { ref, onMounted } from 'vue';
+import { useRuntimeConfig } from '#imports';
+import { useDoctors } from '~/composables/useDoctors';  // Import the composable
+import { useNotifications } from '~/composables/useNotifications';
+import { useAuth } from '~/composables/useAuth';
+
+const {handleLogout} = useAuth();
+const { unreadCount } = useNotifications();
+// Fetch only General Practitioner doctors
+const { doctors, loading, error, fetchGeneralPractitioners } = useDoctors();
+
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
 // Fetching runtime config
-const config = useRuntimeConfig()
-const apiBase = config.public.API_BASE
+const config = useRuntimeConfig();
+const apiBase = config.public.API_BASE;
 
 // Appointments data
-const appointments = ref([])
+const appointments = ref([]);
 const newAppointment = ref({
   doctor_id: null,
   date: '',
   time: '',
   reason: ''
-})
-const errorMessage = ref('')
+});
+const errorMessage = ref('');
 
 // Fetch appointments
 const fetchAppointments = async () => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Get token from cookies
+        },
+      }
+    : {};
+
   try {
-    const response = await $fetch(`${apiBase}/appointments/list`)
-    appointments.value = response
+    const response = await $fetch(`${apiBase}/appointments/list`, authHeaders);
+    appointments.value = response;
   } catch (error) {
-    errorMessage.value = 'Error fetching appointments.'
-    console.error('Error fetching appointments:', error)
+    errorMessage.value = 'Error fetching appointments.';
+    console.error('Error fetching appointments:', error);
   }
-}
+};
 
 // Create a new appointment
 const createAppointment = async () => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Get token from cookies
+        },
+      }
+    : {};
+
   try {
     const response = await $fetch(`${apiBase}/appointments/create`, {
       method: 'POST',
+      headers: authHeaders.headers,
       body: newAppointment.value,
-    })
-    appointments.value.push(response) // Add the new appointment to the list
-    alert('Appointment created successfully')
-    newAppointment.value = { doctor_id: null, date: '', time: '', reason: '' } // Reset form
+    });
+    appointments.value.push(response); // Add the new appointment to the list
+    alert('Appointment created successfully');
+    newAppointment.value = { doctor_id: null, date: '', time: '', reason: '' }; // Reset form
   } catch (error) {
-    errorMessage.value = 'Error creating appointment.'
-    console.error('Error creating appointment:', error)
+    errorMessage.value = 'Error creating appointment.';
+    console.error('Error creating appointment:', error);
   }
-}
-
-// Update an appointment
-const updateAppointment = async (appointmentId, updatedData) => {
-  try {
-    const response = await $fetch(`${apiBase}/appointments/update/${appointmentId}`, {
-      method: 'PUT',
-      body: updatedData,
-    })
-    const index = appointments.value.findIndex(app => app.id === appointmentId)
-    if (index !== -1) {
-      appointments.value[index] = response // Update the appointment in the list
-    }
-    alert('Appointment updated successfully')
-  } catch (error) {
-    errorMessage.value = 'Error updating appointment.'
-    console.error('Error updating appointment:', error)
-  }
-}
+};
 
 // Delete an appointment
 const deleteAppointment = async (appointmentId) => {
+  // Get token from cookies
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Get token from cookies
+        },
+      }
+    : {};
+
   try {
     await $fetch(`${apiBase}/appointments/delete/${appointmentId}`, {
       method: 'DELETE',
-    })
-    appointments.value = appointments.value.filter(app => app.id !== appointmentId) // Remove the appointment from the list
-    alert('Appointment deleted successfully')
+      headers: authHeaders.headers,
+    });
+    appointments.value = appointments.value.filter(app => app.id !== appointmentId); // Remove the appointment from the list
+    alert('Appointment deleted successfully');
   } catch (error) {
-    errorMessage.value = 'Error deleting appointment.'
-    console.error('Error deleting appointment:', error)
+    errorMessage.value = 'Error deleting appointment.';
+    console.error('Error deleting appointment:', error);
   }
-}
+};
 
 // Fetch appointments when the component is mounted
 onMounted(() => {
-  fetchAppointments()
-})
+  fetchAppointments();
+});
 </script>
 
 <template>
@@ -88,7 +121,7 @@ onMounted(() => {
         <!-- Sidebar -->
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
+            <div class="text-white text-xl font-bold mb-8"><a href="/patient/dashboard" >Patient Dashboard </a></div>
             <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
@@ -102,14 +135,23 @@ onMounted(() => {
               <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
             <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
-              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+              <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
-            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">chat</span> Chat
             </a>
             <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">comment</span> Feedback
+            </a>
+            <a @click.prevent="handleLogout" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">logout</span> LogOut
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -127,7 +169,7 @@ onMounted(() => {
                 <div class="relative">
                   <label class="block text-sm font-medium text-emerald-700 mb-1">Doctor</label>
                   <select v-model="newAppointment.doctor_id" class="w-full border border-emerald-200 focus:ring-2 focus:ring-emerald-600 rounded-lg p-2 outline-none" required>
-                    <option v-for="doctor in doctors" :key="doctor.id" :value="doctor.id">{{ doctor.name }}</option>
+                    <option v-for="doctor in doctors" :key="doctor.id" :value="doctor.id">{{ doctor.full_name }}</option>
                   </select>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -188,23 +230,46 @@ onMounted(() => {
                     <th class="text-left py-3 px-4 text-emerald-700">Doctor</th>
                     <th class="text-left py-3 px-4 text-emerald-700">Date & Time</th>
                     <th class="text-left py-3 px-4 text-emerald-700">Status</th>
+                    <th class="text-left py-3 px-4 text-emerald-700">Reason</th>
                     <th class="text-left py-3 px-4 text-emerald-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="appointment in appointments" :key="appointment.id" class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200">
+                  <tr
+                    v-for="appointment in appointments"
+                    :key="appointment.id"
+                    class="border-b border-emerald-100 hover:bg-emerald-50 transition-all duration-200"
+                  >
                     <td class="py-4 px-4">{{ appointment.doctor }}</td>
-                    <td class="py-4 px-4">{{ new Date(appointment.date).toLocaleString() }}</td>
+
                     <td class="py-4 px-4">
-                      <span :class="`px-3 py-1 rounded-full text-sm ${appointment.status === 'Confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`">
+                      {{ new Date(`${appointment.date}T${appointment.time}`).toLocaleString() }}
+                    </td>
+
+                    <!-- Status -->
+                    <td class="py-4 px-4">
+                      <span
+                        :class="`px-3 py-1 rounded-full text-sm ${
+                          appointment.status === 'Confirmed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`"
+                      >
                         {{ appointment.status }}
                       </span>
                     </td>
-                    <td class="py-4 px-4 space-x-2">
-                      <button @click="updateAppointment(appointment.id, { status: 'Confirmed', reason: appointment.reason })" class="p-1 hover:bg-emerald-100 rounded transition-all duration-200">
-                        <span class="material-symbols-outlined text-emerald-600 hover:text-emerald-700">edit</span>
-                      </button>
-                      <button @click="deleteAppointment(appointment.id)" class="p-1 hover:bg-red-100 rounded transition-all duration-200">
+
+                    <!-- Reason -->
+                    <td class="py-4 px-4">
+                      <span>{{ appointment.reason }}</span>
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="py-4 px-4">
+                      <button
+                        @click="deleteAppointment(appointment.id)"
+                        class="p-1 hover:bg-red-100 rounded transition-all duration-200"
+                      >
                         <span class="material-symbols-outlined text-red-500 hover:text-red-600">delete</span>
                       </button>
                     </td>

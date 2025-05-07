@@ -2,8 +2,19 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRuntimeConfig } from '#imports'
+import { useNotifications } from '~/composables/useNotifications';
+import { useAuth } from '~/composables/useAuth';
 
-// Fetching runtime config
+const {handleLogout} = useAuth();
+const { unreadCount } = useNotifications();
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 const config = useRuntimeConfig()
 const apiBase = config.public.API_BASE  // Correct way to access the runtime config
 
@@ -24,20 +35,59 @@ const isEditing = ref(false) // Add editing state
 
 // API logic for fetching profile data
 const fetchProfile = async () => {
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    : {};
+
   try {
-    const response = await $fetch(`${apiBase}/patients/profile`)
-    profile.value = response
+    const response = await $fetch(`${apiBase}/patients/profile`, authHeaders);
+    
+    profile.value = {
+      first_name: response.user.first_name,       // Or add fields from another source if needed
+      middle_name: response.user.middle_name,
+      last_name: response.user.last_name,
+      profile_picture: response.user.profile_picture,
+      region: response.region,
+      town: response.town,
+      kebele: response.kebele,
+      house_number: response.house_number,
+      phone_number: response.user.phone_number,
+      email: response.user.email,
+      username: response.user.username,
+      role: response.user.role,
+      address: response.user.address,
+      id: response.user.id
+    }
+
   } catch (error) {
     errorMessage.value = 'Error fetching profile data.'
     console.error('Error fetching profile:', error)
   }
 }
 
+
 // API logic for updating profile data
 const updateProfile = async () => {
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Add token from cookies
+        },
+      }
+    : {};
+
   try {
     await $fetch(`${apiBase}/user/profile/`, {
       method: 'PUT',
+      headers: authHeaders.headers,  // Add headers for auth
       body: profile.value,
     })
     alert('Profile updated successfully')
@@ -48,18 +98,6 @@ const updateProfile = async () => {
   }
 }
 
-// API logic for deleting profile
-const deleteProfile = async () => {
-  try {
-    await $fetch(`${apiBase}/user/profile/`, {
-      method: 'DELETE',
-    })
-    alert('Profile deleted successfully')
-  } catch (error) {
-    errorMessage.value = 'Error deleting profile.'
-    console.error('Error deleting profile:', error)
-  }
-}
 
 // Fetch profile data when component is mounted
 onMounted(() => {
@@ -67,13 +105,14 @@ onMounted(() => {
 })
 </script>
 
+
 <template>
   <div id="webcrumbs">
     <div class="w-full"> <!-- Changed to w-full to take full width -->
       <div class="flex">
         <aside class="w-full md:w-64 bg-emerald-900 p-6 md:h-screen flex flex-col justify-between">
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Patient Dashboard</div>
+            <div class="text-white text-xl font-bold mb-8"><a href="/patient/dashboard" >Patient Dashboard </a></div>
             <a href="/patient/profile" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">person</span> Profile
             </a>
@@ -87,14 +126,23 @@ onMounted(() => {
               <span class="material-symbols-outlined mr-2">receipt</span> Billing
             </a>
             <a href="/patient/notifications" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
-              <span class="material-symbols-outlined mr-2">notifications</span> Notifications
-              <span class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">3</span>
+              <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
-            <a href="/patient/chatroom" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+            <a href="/patient/chat" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">chat</span> Chat
             </a>
             <a href="/patient/feedback" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
               <span class="material-symbols-outlined mr-2">comment</span> Feedback
+            </a>
+            <a @click.prevent="handleLogout" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200">
+              <span class="material-symbols-outlined mr-2">logout</span> LogOut
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -109,7 +157,6 @@ onMounted(() => {
               <button @click="isEditing = !isEditing" class="rounded-full bg-emerald-600 px-6 py-2 font-medium text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-lg">
                 {{ isEditing ? 'Cancel' : 'Edit Profile' }}
               </button>
-              <button @click="deleteProfile" class="rounded-full bg-red-600 px-6 py-2 font-medium text-white transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg"> Delete Profile </button>
             </div>
           </div>
           <div class="rounded-xl bg-white p-6 shadow-lg transition hover:shadow-xl">

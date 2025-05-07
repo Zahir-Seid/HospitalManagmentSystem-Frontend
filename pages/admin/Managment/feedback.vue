@@ -1,6 +1,34 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRuntimeConfig } from '#imports';
+const route = useRoute();
+
+const navItems = [
+  { path: '/admin/Managment/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { path: '/admin/Managment/attendance', label: 'Attendance', icon: 'calendar_month' },
+  { path: '/admin/Managment/employee', label: 'Employees', icon: 'group' },
+  { path: '/admin/Managment/feedback', label: 'Feedback', icon: 'forum' },
+  { path: '/admin/Managment/pricing', label: 'Pricing', icon: 'sell' },
+  { path: '/admin/Managment/chat', label: 'Messages', icon: 'inbox' },
+];
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
+const getAuthHeaders = () => {
+  const token = typeof window !== 'undefined' ? getCookie('access_token') : null;
+  return token
+    ? {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    : {};
+};
 
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE; // API Base URL
@@ -18,21 +46,52 @@ const formatDate = (date) => {
 
 // Fetch patient comments from API
 const fetchPatientComments = async () => {
-  const authHeaders = {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('access_token')}`, // Get the token from local storage
-    },
-  };
+  // Get token from cookies (client-side only)
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;  // Retrieve access token from cookies
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`, // Get the token from cookies
+        },
+      }
+    : {};
 
   try {
     loading.value = true;
-    const response = await $fetch(`${apiBase}/api/Managment/patient-comments`, authHeaders);
+    const response = await $fetch(`${apiBase}/Managment/patient-comments`, authHeaders);
     comments.value = response; // Assuming response is an array of comments
     totalComments.value = response.length; // Assuming you have the total number of comments
   } catch (error) {
     console.error('Error fetching patient comments:', error);
   } finally {
     loading.value = false;
+  }
+};
+
+const handleLogout = async () => {
+  try {
+    const refreshToken = getCookie('refresh_token'); // Read refresh_token from cookies
+    if (!refreshToken) {
+      console.warn('No refresh token found in cookies.');
+      window.location.href = '/admin/login'; // Fallback to login
+      return;
+    }
+
+    await $fetch(`${apiBase}/user/logout/`, {
+      method: 'POST',
+      body: { refresh_token: refreshToken },
+      ...getAuthHeaders(),
+    });
+
+    // Clear cookies (optional: depends if backend does it too)
+    document.cookie = 'access_token=; Max-Age=0; path=/';
+    document.cookie = 'refresh_token=; Max-Age=0; path=/';
+
+    // Redirect to login page
+    window.location.href = '/admin/login';
+  } catch (error) {
+    console.error('Logout failed:', error);
+    alert('Logout failed. Please try again.');
   }
 };
 
@@ -55,61 +114,29 @@ onMounted(() => {
             </div>
             <nav class="py-4">
             <ul>
-              <li class="mb-1">
+              <li class="mb-1" v-for="item in navItems" :key="item.path">
                 <a
-                  href="/admin/Managment/dashboard"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+                  :href="item.path"
+                  :class="[
+                    'flex items-center px-4 py-3 transition-all duration-200',
+                    route.path === item.path
+                      ? 'text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600'
+                      : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-900'
+                  ]"
                 >
-                  <span class="material-symbols-outlined mr-3">dashboard</span>
-                  Dashboard
+                  <span class="material-symbols-outlined mr-3">{{ item.icon }}</span>
+                  {{ item.label }}
                 </a>
               </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/attendance"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+
+              <li class="mt-6">
+                <button 
+                  @click="handleLogout"
+                  class="flex items-center w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200"
                 >
-                  <span class="material-symbols-outlined mr-3"
-                    >calendar_month</span
-                  >
-                  Attendance
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/employee"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">group</span>
-                  Employees
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/feedback"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">forum</span>
-                  Feedback
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/pricing"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">sell</span>
-                  Pricing
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/chat"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">inbox</span>
-                  Messages
-                </a>
+                  <span class="material-symbols-outlined mr-3">logout</span>
+                  Logout
+                </button>
               </li>
             </ul>
           </nav>

@@ -6,18 +6,19 @@ import { usePatients } from '~/composables/usePatients';  // Import usePatients 
 import { useNotifications } from '~/composables/useNotifications';
 
 const { unreadCount } = useNotifications();
+const { getUser } = useAuth()
 const { doctors, fetchAllDoctors } = useDoctors()
+const appointments = ref([]);
 
-// Get current user's doctor ID
-const currentUser = useAuth().getUser();
-const currentDoctorId = computed(() => currentUser ? currentUser.user_id : null);
-
-const todayAppointments = computed(() => {
-  const today = new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
-  return appointments.value.filter(a => a.date === today);
-});
+const defaultAvatar = '/assets/imgs/download.png'; // fallback image in case none exists
+const currentUser = getUser()
+const currentDoctor = computed(() => {
+  if (!currentUser || !doctors.value.length) return null
+  return doctors.value.find(doc => doc.id === currentUser.user_id) || null
+})
 
 // Fetching patients for the current doctor
+const currentDoctorId = computed(() => currentDoctor.value?.id || 0);
 const { patientData, loading, error } = usePatients(currentDoctorId.value);
 
 // Function to get a cookie value by name
@@ -40,14 +41,6 @@ const authHeaders = {
   },
 };
 
-// State
-const appointments = ref([]);
-const labForm = ref({
-  patient_id: '',
-  test_name: '',
-  notes: '',
-});
-
 // Fetch appointments for logged-in doctor
 const fetchAppointments = async () => {
   try {
@@ -60,35 +53,49 @@ const fetchAppointments = async () => {
   }
 };
 
-// Submit lab test order
-const submitLabOrder = async () => {
-  try {
-    const payload = {
-      patient_id: parseInt(labForm.value.patient_id),
-      test_name: labForm.value.test_name,
-      notes: labForm.value.notes,
-    };
 
-    const response = await fetch(`${apiBase}/lab/order`, {
-      method: 'POST',
+const showEditModal = ref(false);
+const editForm = ref({
+  id: null,
+  date: '',
+  time: '',
+  status: 'Pending', // default value
+});
+
+
+const openEditModal = (appointment) => {
+  editForm.value = {
+    id: appointment.id,
+    date: appointment.date,
+    time: appointment.time,
+    status: appointment.status || 'Pending'
+  };
+  showEditModal.value = true;
+};
+
+
+const updateAppointment = async () => {
+  try {
+    const response = await fetch(`${apiBase}/appointments/update/${editForm.value.id}`, {
+      method: 'PUT',
       headers: authHeaders.headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        date: editForm.value.date,
+        time: editForm.value.time,
+        status: editForm.value.status, // include status
+      }),
     });
 
-    if (!response.ok) throw new Error('Lab test order failed');
-    const result = await response.json();
-    alert('Lab order submitted successfully!');
-    // Reset form
-    labForm.value = { patient_id: '', test_name: '', notes: '' };
+    if (!response.ok) throw new Error('Update failed');
+
+    showEditModal.value = false;
+    await fetchAppointments(); // refresh data
   } catch (error) {
-    console.error('Error submitting lab order:', error);
-    alert('Failed to submit lab order');
+    console.error('Update error:', error);
   }
 };
 
-const editAppointment = (appointment) => {
-  alert(`Edit appointment #${appointment.id} - this will trigger a modal/form in real use.`);
-};
+
 
 onMounted(() => {
   fetchAppointments();
@@ -198,7 +205,7 @@ onMounted(() => {
           <div class="lg:col-span-3">
             <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
               <div class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl flex justify-between items-center">
-                <h3 class="text-xl font-bold text-emerald-900">Today's Appointments</h3>
+                <h3 class="text-xl font-bold text-emerald-900">Appointments</h3>
               </div>
 
               <div class="overflow-x-auto mt-6">
@@ -209,19 +216,20 @@ onMounted(() => {
                       <th class="p-4 text-left text-emerald-700">Time</th>
                       <th class="p-4 text-left text-emerald-700">Reason</th>
                       <th class="p-4 text-left text-emerald-700">Status</th>
+                      <th class="p-4 text-left text-emerald-700">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr
-                      v-for="appointment in todayAppointments"
+                      v-for="appointment in appointments"
                       :key="appointment.id"
                       class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors"
                     >
                       <td class="p-4 flex items-center space-x-2">
                         <img
-                          src="https://randomuser.me/api/portraits/lego/1.jpg"
-                          alt="Patient"
-                          class="w-8 h-8 rounded-full"
+                        :src="appointment.patient_profile_picture || defaultAvatar"
+                        alt="Patient"
+                        class="w-8 h-8 rounded-full object-cover"
                         />
                         <span>{{ appointment.patient || 'Patient #' + appointment.id }}</span>
                       </td>
@@ -231,71 +239,44 @@ onMounted(() => {
                         <span class="px-3 py-1 rounded-full"
                           :class="{
                             'bg-amber-100 text-amber-800': appointment.status === 'Pending',
-                            'bg-emerald-100 text-emerald-800': appointment.status === 'Completed',
-                            'bg-red-100 text-red-800': appointment.status === 'Urgent',
+                            'bg-emerald-100 text-emerald-800': appointment.status === 'Confirmed',
                           }"
                         >
                           {{ appointment.status }}
                         </span>
                       </td>
+                      <td class="p-4">
+                        <button
+                          class="text-emerald-600 hover:text-emerald-700 p-1 hover:bg-emerald-100 rounded-full transition-colors"
+                          @click="openEditModal(appointment)"
+                        >
+                          <span class="material-symbols-outlined">edit</span>
+                        </button>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
-              </div>
-            </div>
-          </div>
+                <dialog v-if="showEditModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                <div class="bg-white p-6 rounded shadow-lg max-w-sm w-full">
+                    <h2 class="text-lg font-bold mb-4">Edit Appointment</h2>
+                    
+                    <label class="block mb-2">Date</label>
+                    <input type="date" v-model="editForm.date" class="w-full mb-4 border rounded px-3 py-2" />
 
-          <!-- Lab Test Order Section -->
-          <div class="lg:col-span-2">
-            <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-              <div class="bg-gradient-to-r from-emerald-100 to-white -m-6 p-6 rounded-t-xl">
-                <h3 class="text-xl font-bold text-emerald-900">Order Lab Test</h3>
-              </div>
+                    <label class="block mb-2">Time</label>
+                      <input type="time" v-model="editForm.time" class="w-full mb-4 border rounded px-3 py-2" />
 
-              <div class="mt-6 grid grid-cols-2 gap-4">
-                <!-- Patient Selection Dropdown -->
-                <div>
-                  <label class="block text-emerald-700 mb-2">Patient</label>
-                  <select
-                    v-model="labForm.patient_id"
-                    class="border border-emerald-200 rounded-lg w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                  >
-                    <option value="" disabled selected>Select a Patient</option>
-                    <!-- Loop through patientData to display patient names -->
-                    <option v-for="patient in patientData" :key="patient.id" :value="patient.id">
-                      {{ patient.patient }} ({{ patient.username }})
-                    </option>
-                  </select>
+                      <label class="block mb-2">Status</label>
+                      <select v-model="editForm.status" class="w-full mb-4 border rounded px-3 py-2">
+                        <option value="Pending">Pending</option>
+                        <option value="Confirmed">Confirmed</option>
+                      </select>
+                    <div class="flex justify-end space-x-2">
+                    <button @click="showEditModal = false" class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
+                    <button @click="updateAppointment" class="px-4 py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700">Save</button>
+                    </div>
                 </div>
-
-                <!-- Test Name Input -->
-                <div>
-                  <label class="block text-emerald-700 mb-2">Test Name</label>
-                  <input
-                    type="text"
-                    v-model="labForm.test_name"
-                    class="border border-emerald-200 rounded-lg w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                  />
-                </div>
-
-                <!-- Notes Section -->
-                <div class="col-span-2">
-                  <label class="block text-emerald-700 mb-2">Notes</label>
-                  <textarea
-                    v-model="labForm.notes"
-                    class="border border-emerald-200 rounded-lg w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                    rows="3"
-                  ></textarea>
-                </div>
-
-                <!-- Submit Button -->
-                <button
-                  @click="submitLabOrder"
-                  class="col-span-2 bg-emerald-600 text-white px-6 py-3 rounded-full hover:bg-emerald-700 transition-colors flex items-center justify-center mt-2"
-                >
-                  <span class="material-symbols-outlined mr-2">send</span>
-                  Submit Order
-                </button>
+                </dialog>
               </div>
             </div>
           </div>

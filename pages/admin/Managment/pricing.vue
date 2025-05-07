@@ -1,30 +1,55 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRuntimeConfig } from '#imports';
+import { useAuth } from '~/composables/useAuth' 
+const { handleLogout } = useAuth()
+
+const route = useRoute();
+
+const navItems = [
+  { path: '/admin/Managment/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { path: '/admin/Managment/attendance', label: 'Attendance', icon: 'calendar_month' },
+  { path: '/admin/Managment/employee', label: 'Employees', icon: 'group' },
+  { path: '/admin/Managment/feedback', label: 'Feedback', icon: 'forum' },
+  { path: '/admin/Managment/pricing', label: 'Pricing', icon: 'sell' },
+  { path: '/admin/Managment/chat', label: 'Messages', icon: 'inbox' },
+];
+
+// Get cookie value
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
 
 // Reactive state
 const services = ref([]);
-const newService = ref({ service_name: '', price: 0 });
+const newService = ref({ id: null, service_name: '', price: 0 });
 const isLoading = ref(false);
 const errorMessage = ref('');
-const isModalOpen = ref(false); // Modal state
-
-// Auth headers
-const authHeaders = {
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-  },
-};
+const isModalOpen = ref(false);
+const editMode = ref(false); // <- NEW: track whether editing or adding
 
 // Fetch all service prices
 const fetchServices = async () => {
   isLoading.value = true;
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    : {};
+
   try {
-    const response = await fetch(`${apiBase}/api/Managment/services`, authHeaders);
+    const response = await fetch(`${apiBase}/Managment/services`, authHeaders);
     if (!response.ok) throw new Error('Failed to fetch services');
     services.value = await response.json();
   } catch (error) {
@@ -36,25 +61,84 @@ const fetchServices = async () => {
 
 // Add or update service price
 const saveService = async () => {
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    : {};
+
   try {
-    const response = await fetch(`${apiBase}/api/Managment/services`, {
-      method: 'POST',
+    let url = `${apiBase}/Managment/services`;
+    let method = 'POST';
+    
+    if (editMode.value && newService.value.id) {
+      url = `${apiBase}/Managment/services/${newService.value.id}`;
+      method = 'PUT';
+    }
+
+    const response = await fetch(url, {
+      method,
       headers: authHeaders.headers,
-      body: JSON.stringify(newService.value),
+      body: JSON.stringify({
+        service_name: newService.value.service_name,
+        price: newService.value.price,
+      }),
     });
 
     if (!response.ok) throw new Error('Failed to save service');
-    await fetchServices(); // Refresh the list
-    isModalOpen.value = false; // Close modal
-    newService.value = { service_name: '', price: 0 }; // Reset form
+
+    await fetchServices(); // Refresh
+    closeModal(); // Close modal
   } catch (error) {
     errorMessage.value = error.message;
   }
 };
 
-// Open modal for adding service
+// Open modal for adding a new service
 const openModal = () => {
+  editMode.value = false;
+  newService.value = { id: null, service_name: '', price: 0 };
   isModalOpen.value = true;
+};
+
+// Open modal for editing existing service
+const editService = (service) => {
+  editMode.value = true;
+  newService.value = { ...service }; // Fill form with existing service
+  isModalOpen.value = true;
+};
+
+// Delete a service
+const deleteService = async (id) => {
+  const confirmDelete = confirm('Are you sure you want to delete this service?');
+  if (!confirmDelete) return;
+
+  const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+  const authHeaders = accessToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    : {};
+
+  try {
+    const response = await fetch(`${apiBase}/Managment/services/${id}`, {
+      method: 'DELETE',
+      headers: authHeaders.headers,
+    });
+
+    if (!response.ok) throw new Error('Failed to delete service');
+    await fetchServices(); // Refresh
+  } catch (error) {
+    errorMessage.value = error.message;
+  }
 };
 
 // Close modal
@@ -64,7 +148,15 @@ const closeModal = () => {
 
 // Fetch services on mount
 onMounted(fetchServices);
+
+// Computed Average Price
+const averagePrice = computed(() => {
+  if (services.value.length === 0) return 0;
+  const total = services.value.reduce((sum, service) => sum + service.price, 0);
+  return (total / services.value.length).toFixed(2);
+});
 </script>
+
 
 
 <template
@@ -79,61 +171,29 @@ onMounted(fetchServices);
           </div>
           <nav class="py-4">
             <ul>
-              <li class="mb-1">
+              <li class="mb-1" v-for="item in navItems" :key="item.path">
                 <a
-                  href="/admin/Managment/dashboard"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+                  :href="item.path"
+                  :class="[
+                    'flex items-center px-4 py-3 transition-all duration-200',
+                    route.path === item.path
+                      ? 'text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600'
+                      : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-900'
+                  ]"
                 >
-                  <span class="material-symbols-outlined mr-3">dashboard</span>
-                  Dashboard
+                  <span class="material-symbols-outlined mr-3">{{ item.icon }}</span>
+                  {{ item.label }}
                 </a>
               </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/attendance"
-                  class="flex items-center px-4 py-3 text-emerald-900 bg-emerald-50 border-l-4 border-emerald-600 hover:bg-emerald-100 transition-all duration-200"
+
+              <li class="mt-6">
+                <button 
+                  @click="handleLogout"
+                  class="flex items-center w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200"
                 >
-                  <span class="material-symbols-outlined mr-3"
-                    >calendar_month</span
-                  >
-                  Attendance
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/employee"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">group</span>
-                  Employees
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/feedback"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">forum</span>
-                  Feedback
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/pricing"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">sell</span>
-                  Pricing
-                </a>
-              </li>
-              <li class="mb-1">
-                <a
-                  href="/admin/Managment/chat"
-                  class="flex items-center px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 transition-all duration-200"
-                >
-                  <span class="material-symbols-outlined mr-3">inbox</span>
-                  Messages
-                </a>
+                  <span class="material-symbols-outlined mr-3">logout</span>
+                  Logout
+                </button>
               </li>
             </ul>
           </nav>
@@ -150,6 +210,7 @@ onMounted(fetchServices);
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+      <!-- Services Table -->
       <div class="col-span-1 lg:col-span-2 bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-lg font-bold text-emerald-900">Hospital Services Pricing</h2>
@@ -199,6 +260,7 @@ onMounted(fetchServices);
         </div>
       </div>
 
+      <!-- Sidebar Overview -->
       <div class="col-span-1 space-y-6">
         <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
           <h2 class="text-lg font-bold text-emerald-900 mb-4">Pricing Overview</h2>
@@ -241,11 +303,14 @@ onMounted(fetchServices);
               placeholder="0.00" />
           </div>
           <div class="flex justify-end space-x-3 pt-4 border-t">
-            <button @click="closeModal" type="button" 
+            <button 
+              type="button" 
+              @click="closeModal"
               class="px-4 py-2 border border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50 transition-all duration-200">
               Cancel
             </button>
-            <button type="submit" 
+            <button 
+              type="submit" 
               class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200">
               {{ editMode ? 'Update' : 'Add Service' }}
             </button>

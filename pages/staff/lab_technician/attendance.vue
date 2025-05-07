@@ -1,95 +1,115 @@
 <script setup>
+import { ref } from 'vue';
+import { useAuth } from '~/composables/useAuth' 
+import { useNotifications } from '~/composables/useNotifications';
+const { unreadCount } = useNotifications();
+
+const { handleLogout } = useAuth()
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
-const checkInTime = ref('')
-const checkOutTime = ref('')
-const todaySummary = ref(null)
+const checkInTime = ref('');
+const checkOutTime = ref('');
+const todaySummary = ref(null);
 
 const markAttendance = async () => {
   try {
     if (!checkInTime.value && !checkOutTime.value) {
-      alert('Please enter at least one time (check-in or check-out)')
-      return
+      alert('Please enter at least one time (check-in or check-out)');
+      return;
     }
 
-    const action = checkInTime.value && !checkOutTime.value ? 'check_in' : 'check_out'
-    const time = checkInTime.value || checkOutTime.value
+    const action = checkInTime.value && !checkOutTime.value ? 'check_in' : 'check_out';
+    const time = checkInTime.value || checkOutTime.value;
 
-    const response = await fetch(`${apiBase}/management/attendance`, {
+    // Retrieve the token from cookies
+    const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null; 
+
+    const response = await fetch(`${apiBase}/Managment/attendance`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        Authorization: accessToken ? `Bearer ${accessToken}` : '', // Use token from cookies if available
       },
       body: JSON.stringify({ action, time: `${time}:00` }),
-    })
+    });
 
-    const data = await response.json()
-    if (!response.ok) throw new Error(data.error || 'Failed to mark attendance')
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to mark attendance');
 
-    todaySummary.value = data
-    alert('Attendance marked successfully!')
+    todaySummary.value = data;
+    alert('Attendance marked successfully!');
   } catch (error) {
-    console.error(error)
-    alert(error.message)
+    console.error(error);
+    alert(error.message);
   }
-}
+};
 </script>
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
       <div class="flex h-full">
         <!-- Sidebar -->
         <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
-          <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Record Officer Dashboard</div>
-            <a
-              href="/staff/record_officer/patient_registrar"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">person_add</span>
-              Pending Registrations
-            </a>
-            <a
-              href="/staff/record_officer/patient_record"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">folder_supervised</span>
-              Patient Records
-            </a>
-            <a
-              href="/staff/record_officer/notifications"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">notifications</span>
-              Notifications
-            </a>
-            <a
-              href="/staff/record_officer/inbox"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">inbox</span>
-              Inbox
-            </a>
-            <a
-              href="/staff/record_officer/attendance"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">schedule</span>
-              Attendance
-            </a>
-            <a
-              href="/staff/record_officer/assignroom"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">meeting_room</span>
-              Assign Room
-            </a>
-          </nav>
-          <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
-            © 2025 Assosa General Hospital. All rights reserved.
-          </div>
-        </aside>
+        <nav class="space-y-4">
+          <div class="text-white text-xl font-bold mb-8">Lab Dashboard</div>
+          <a
+            href="/staff/lab_technician/dashboard"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
+          >
+            <span class="material-symbols-outlined mr-2">science</span> Lab
+            Tests
+          </a>
+          <a
+            href="/staff/lab_technician/notifications"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
+          >
+            <span class="material-symbols-outlined mr-2">notifications</span>
+            Notifications
+            <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
+          </a>
+          <a
+            href="/staff/lab_technician/inbox"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
+          >
+            <span class="material-symbols-outlined mr-2">inbox</span> Inbox
+          </a>
+          <a
+            href="/staff/lab_technician/attendance"
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 transform hover:translate-x-1"
+          >
+            <span class="material-symbols-outlined mr-2">schedule</span>
+            Attendance
+          </a>
+          <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
+        </nav>
+        <div
+          class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"
+        >
+          © 2025 Assosa General Hospital. All rights reserved.
+        </div>
+      </aside>
 
         <main class="flex-1 bg-emerald-50 p-8 overflow-y-auto">
         <div class="space-y-6">

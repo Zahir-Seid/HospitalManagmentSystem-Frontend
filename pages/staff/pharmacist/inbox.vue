@@ -1,4 +1,19 @@
 <script setup>
+import { ref, onMounted } from 'vue';
+import { useAuth } from '~/composables/useAuth' // Adjust the path if needed
+import { useNotifications } from '~/composables/useNotifications';
+
+const { unreadCount } = useNotifications();
+const { handleLogout } = useAuth()
+
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
 
@@ -6,11 +21,15 @@ const messages = ref([]);
 
 async function fetchMessages() {
   try {
+    // Retrieve the token from cookies
+    const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null; 
+
     const response = await fetch(`${apiBase}/Managment/inbox`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`
+        Authorization: accessToken ? `Bearer ${accessToken}` : '', // Use token from cookies if available
       }
     });
+
     if (!response.ok) throw new Error('Failed to fetch messages');
     const data = await response.json();
     messages.value = data;
@@ -28,58 +47,82 @@ function formatDate(timestamp) {
 onMounted(fetchMessages);
 </script>
 
+
 <template>
   <div id="webcrumbs">
     <div class="h-[1080px]">
       <div class="flex h-full">
         <!-- Sidebar -->
-        <aside class="w-64 bg-emerald-900 p-6 flex flex-col justify-between">
+        <aside
+          class="w-64 bg-emerald-900 p-6 flex flex-col justify-between h-screen sticky top-0"
+        >
           <nav class="space-y-4">
-            <div class="text-white text-xl font-bold mb-8">Record Officer Dashboard</div>
+            <div class="text-white text-xl font-bold mb-8 flex items-center">
+              <span class="material-symbols-outlined mr-2 text-2xl"
+                >local_pharmacy</span
+              >
+              <a href="/staff/pharmacist/dashboard">Pharmacy Dashboard</a>
+            </div>
             <a
-              href="/staff/record_officer/patient_registrar"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/pharmacist/inventory"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
-              <span class="material-symbols-outlined mr-2">person_add</span>
-              Pending Registrations
+              <span
+                class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+                >vaccines</span
+              >
+              Drug Inventory
             </a>
+            <div class="pt-4 border-t border-emerald-800 mt-4"></div>
             <a
-              href="/staff/record_officer/patient_record"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/pharmacist/notifications"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
-              <span class="material-symbols-outlined mr-2">folder_supervised</span>
-              Patient Records
-            </a>
-            <a
-              href="/staff/record_officer/notifications"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">notifications</span>
+              <span
+                class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+                >notifications</span
+              >
               Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
             <a
-              href="/staff/record_officer/inbox"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/pharmacist/inbox"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
-              <span class="material-symbols-outlined mr-2">inbox</span>
+              <span
+                class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+                >inbox</span
+              >
               Inbox
             </a>
             <a
-              href="/staff/record_officer/attendance"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+              href="/staff/pharmacist/attendance"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
             >
-              <span class="material-symbols-outlined mr-2">schedule</span>
+              <span
+                class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
+                >schedule</span
+              >
               Attendance
             </a>
             <a
-              href="/staff/record_officer/assignroom"
-              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
-            >
-              <span class="material-symbols-outlined mr-2">meeting_room</span>
-              Assign Room
-            </a>
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
+          </a>
           </nav>
-          <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
+          <div
+            class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800"
+          >
             © 2025 Assosa General Hospital. All rights reserved.
           </div>
         </aside>
@@ -118,6 +161,7 @@ onMounted(fetchMessages);
                   <div>
                     <h3 class="text-lg font-semibold">{{ message.sender }}</h3>
                     <p class="text-sm text-gray-500">{{ message.subject }}</p>
+                    <p class="text-sm text-gray-500">{{ message.message }}</p>
                     <p class="text-xs text-gray-400 mt-1">{{ formatDate(message.timestamp) }}</p>
                   </div>
                 </div>

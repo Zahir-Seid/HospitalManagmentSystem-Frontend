@@ -1,4 +1,25 @@
 <script setup>
+import { ref, onMounted } from 'vue';
+import { useNotifications } from '~/composables/useNotifications';
+const { unreadCount } = useNotifications();
+
+// Function to get a cookie value by name
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+const getAuthHeaders = () => {
+  const token = typeof window !== 'undefined' ? getCookie('access_token') : null;
+  return token
+    ? {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    : {};
+};
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
 
@@ -6,11 +27,15 @@ const messages = ref([]);
 
 async function fetchMessages() {
   try {
+    // Retrieve the token from cookies
+    const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null; 
+
     const response = await fetch(`${apiBase}/Managment/inbox`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`
+        Authorization: accessToken ? `Bearer ${accessToken}` : '', // Use token from cookies if available
       }
     });
+
     if (!response.ok) throw new Error('Failed to fetch messages');
     const data = await response.json();
     messages.value = data;
@@ -23,6 +48,34 @@ function formatDate(timestamp) {
   const date = new Date(timestamp);
   return date.toLocaleString();
 }
+
+
+const handleLogout = async () => {
+  try {
+    const refreshToken = getCookie('refresh_token'); // Read refresh_token from cookies
+    if (!refreshToken) {
+      console.warn('No refresh token found in cookies.');
+      window.location.href = '/staff/login'; // Fallback to login
+      return;
+    }
+
+    await $fetch(`${apiBase}/user/logout/`, {
+      method: 'POST',
+      body: { refresh_token: refreshToken },
+      ...getAuthHeaders(),
+    });
+
+    // Clear cookies (optional: depends if backend does it too)
+    document.cookie = 'access_token=; Max-Age=0; path=/';
+    document.cookie = 'refresh_token=; Max-Age=0; path=/';
+
+    // Redirect to login page
+    window.location.href = '/staff/login';
+  } catch (error) {
+    console.error('Logout failed:', error);
+    alert('Logout failed. Please try again.');
+  }
+};
 
 // Fetch messages on mount
 onMounted(fetchMessages);
@@ -56,6 +109,12 @@ onMounted(fetchMessages);
             >
               <span class="material-symbols-outlined mr-2">notifications</span>
               Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
             </a>
             <a
               href="/staff/record_officer/inbox"
@@ -77,6 +136,13 @@ onMounted(fetchMessages);
             >
               <span class="material-symbols-outlined mr-2">meeting_room</span>
               Assign Room
+            </a>
+            <a
+              @click="handleLogout"
+              class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"
+            >
+              <span class="material-symbols-outlined mr-2">logout</span>
+              LogOut
             </a>
           </nav>
           <div class="text-emerald-200 text-sm text-center mt-auto pt-6 border-t border-emerald-800">
@@ -118,6 +184,7 @@ onMounted(fetchMessages);
                   <div>
                     <h3 class="text-lg font-semibold">{{ message.sender }}</h3>
                     <p class="text-sm text-gray-500">{{ message.subject }}</p>
+                    <p class="text-sm text-gray-500">{{ message.message }}</p>
                     <p class="text-xs text-gray-400 mt-1">{{ formatDate(message.timestamp) }}</p>
                   </div>
                 </div>

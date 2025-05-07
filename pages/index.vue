@@ -67,17 +67,22 @@
         <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-6 md:space-y-0">
           <div class="w-full md:w-1/2" id="appointment-form">
             <h3 class="text-xl md:text-2xl font-bold mb-4">How to Make an Appointment</h3>
-            <p class="text-base md:text-lg mb-4">To book an appointment with one of our specialists, please follow these steps:</p>
+            <p class="text-base md:text-lg mb-4">
+              To book an appointment, please follow these steps:
+            </p>
             <ul class="list-disc pl-6 space-y-2">
               <li>1. <strong>Log in</strong> to your account.</li>
-              <li>2. <strong>Select a service</strong> from the available options (e.g., General Checkup, Surgery, Pediatrics, etc.).</li>
-              <li>3. <strong>Choose a doctor</strong> based on the service you require.</li>
-              <li>4. <strong>Pick a date and time</strong> that works for you from the available slots.</li>
-              <li>5. <strong>Provide a reason</strong> for your visit in the provided text area.</li>
-              <li>6. <strong>Submit the appointment</strong> for approval and confirmation.</li>
+              <li>2. <strong>Book a consultation</strong> with a General Practitioner (GP).</li>
+              <li>3. <strong>Attend the consultation</strong> and discuss your symptoms or concerns.</li>
+              <li>4. If needed, the GP will <strong>refer you to a specialist</strong> or recommend a specific service.</li>
+              <li>5. You will then be guided to <strong>book a follow-up appointment</strong> with the appropriate specialist.</li>
             </ul>
-            <p class="mt-4">Please <a href="/signin" class="text-emerald-600 font-semibold hover:underline">log in</a> to proceed with booking an appointment.</p>
-            <p class="mt-4">Don't have an account? <a href="/signup" class="text-emerald-600 font-semibold hover:underline">Sign up</a> to create one.</p>
+            <p class="mt-4">
+              Please <a href="/signin" class="text-emerald-600 font-semibold hover:underline">log in</a> to proceed with booking an appointment.
+            </p>
+            <p class="mt-4">
+              Don't have an account? <a href="/signup" class="text-emerald-600 font-semibold hover:underline">Sign up</a> to create one.
+            </p>
           </div>
           <img src="assets\imgs\image2.png" class="w-full md:w-1/3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105" alt="Friendly doctor with stethoscope"/>
         </div>

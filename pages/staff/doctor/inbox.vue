@@ -1,32 +1,62 @@
 <script setup>
+import { ref, onMounted } from 'vue';
+import { useAuth } from '~/composables/useAuth'; // Adjust if needed
+import { useNotifications } from '~/composables/useNotifications';
+
+const { unreadCount } = useNotifications();
+const { handleLogout } = useAuth();
+
 const config = useRuntimeConfig();
 const apiBase = config.public.API_BASE;
 
 const messages = ref([]);
 
-async function fetchMessages() {
-  try {
-    const response = await fetch(`${apiBase}/Managment/inbox`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('access_token')}`
-      }
-    });
-    if (!response.ok) throw new Error('Failed to fetch messages');
-    const data = await response.json();
-    messages.value = data;
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-  }
-}
+// Helper to get cookie value
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
+// Format timestamp to readable date
 function formatDate(timestamp) {
   const date = new Date(timestamp);
   return date.toLocaleString();
 }
 
-// Fetch messages on mount
+// Fetch messages from both endpoints
+async function fetchMessages() {
+  try {
+    const accessToken = typeof window !== 'undefined' ? getCookie('access_token') : null;
+
+    const headers = {
+      Authorization: accessToken ? `Bearer ${accessToken}` : '',
+    };
+
+    const [managementRes, labsRes] = await Promise.all([
+      fetch(`${apiBase}/Managment/inbox`, { headers }),
+      fetch(`${apiBase}/lab/inbox`, { headers }),
+    ]);
+
+    if (!managementRes.ok || !labsRes.ok) throw new Error('Failed to fetch messages');
+
+    const [managementData, labsData] = await Promise.all([
+      managementRes.json(),
+      labsRes.json(),
+    ]);
+
+    // Combine both sets of messages
+    messages.value = [...managementData, ...labsData];
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+  }
+}
+
 onMounted(fetchMessages);
 </script>
+
+
 
 <template>
   <div id="webcrumbs">
@@ -36,10 +66,13 @@ onMounted(fetchMessages);
         <aside
         class="w-64 bg-emerald-900 p-6 flex flex-col justify-between h-screen sticky top-0"
       >
-        <nav class="space-y-4">
-          <div class="text-white text-xl font-bold mb-8">Doctor Dashboard</div>
+      <nav class="space-y-4">
+          <div class="text-white text-xl font-bold mb-8"><a href="/staff/doctor/dashboard">Doctor Dashboard</a></div>
+          <a href="/staff/doctor/appointment" class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200"> 
+                      <span class="material-symbols-outlined mr-2">event</span> Appointments 
+          </a>
           <a
-            href="staff/doctor/prescriptions"
+            href="/staff/doctor/prescriptions"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -49,7 +82,7 @@ onMounted(fetchMessages);
             Prescriptions
           </a>
           <a
-            href="staff/doctor/referrals"
+            href="/staff/doctor/referrals"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -59,7 +92,7 @@ onMounted(fetchMessages);
             Patient Referrals
           </a>
           <a
-            href="staff/doctor/chat"
+            href="/staff/doctor/chat"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -69,17 +102,20 @@ onMounted(fetchMessages);
             Chat
           </a>
           <a
-            href="staff/doctor/notifications"
+            href="/staff/doctor/notifications"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
-            <span
-              class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform"
-              >notifications</span
-            >
-            Notifications
+          <span class="material-symbols-outlined mr-2">notifications</span>
+              Notifications
+              <span
+                v-if="unreadCount > 0"
+                class="ml-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full"
+              >
+                {{ unreadCount }}
+              </span>
           </a>
           <a
-            href="staff/doctor/inbox"
+            href="/staff/doctor/inbox"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -89,7 +125,7 @@ onMounted(fetchMessages);
             Inbox
           </a>
           <a
-            href="staff/doctor/attendance"
+            href="/staff/doctor/attendance"
             class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
           >
             <span
@@ -97,6 +133,15 @@ onMounted(fetchMessages);
               >schedule</span
             >
             Attendance
+          </a>
+          <a
+            class="flex items-center text-white hover:bg-emerald-800 p-2 rounded-lg transition-all duration-200 group"
+            @click.prevent="handleLogout"
+          >
+            <span class="material-symbols-outlined mr-2 group-hover:scale-110 transition-transform">
+              logout
+            </span>
+            LogOut
           </a>
         </nav>
         <div
@@ -140,6 +185,7 @@ onMounted(fetchMessages);
                   <div>
                     <h3 class="text-lg font-semibold">{{ message.sender }}</h3>
                     <p class="text-sm text-gray-500">{{ message.subject }}</p>
+                    <p class="text-sm text-gray-500">{{ message.message }}</p>
                     <p class="text-xs text-gray-400 mt-1">{{ formatDate(message.timestamp) }}</p>
                   </div>
                 </div>
